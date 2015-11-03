@@ -1,0 +1,78 @@
+{extends file="layout.thtml"}
+
+{block name="content"}
+	<h1>My Portfolio</h1>
+	
+	{if $notice}
+		<div class="notices">
+			<p>{$notice}</p>
+		</div>
+	{/if}
+	
+	{module_installed name="portfolios"}
+	
+		
+		<table class="table" cellpadding="0" cellspacing="0">
+			<thead>
+				<tr>
+					<td colspan="4">My Trades</td>
+				</tr>
+				<tr>
+					<td>Ticker Symbol</td>
+					<td>Quantity</td>
+					<td>Cost per Share</td>
+					<td></td>
+				</tr>
+			</thead>
+			
+			<tbody>
+			{if $trades}
+			{foreach $trades as $trade}
+			{assign var="trade_id" value=$trade.id}
+				<tr>
+					<td style="width:25%"><b>{$trade.ticker_symbol}</b></td>
+					<td style="width:25%"><b>{$trade.quantity|commify}</b></td>
+					<td style="width:25%"><b>&#36;{$trade.cost_per|commify}</b></td>
+					<td>
+					<form class="form validate" enctype="multipart/form-data" method="post" action="{url path="portfolios/trade/sell/{$trade.trade_id}"}">
+						<input type="submit" class="button" name="sell" value="Sell" />
+					</form>
+					</td>
+				</tr>			
+			{/foreach}
+			{else}
+				<p>You have no trades in your portfolio.</p>
+			{/if}
+				<tr>
+					<form class="form validate" enctype="multipart/form-data" method="post" action="{url path="portfolios/trade/buy"}">
+						{if $validation_errors}
+							<div class="errors">
+								{$validation_errors}
+							</div>
+						{/if}
+						
+						
+								<td>
+									<input type="text" name="ticker_symbol">
+								</td>
+							
+								<td>
+									<input type="text" name="quantity">
+								</td>
+							
+								<td>
+									<input type="text" name="cost_per">
+								</td>
+								
+								<td>
+									<input type="submit" class="button" name="buy" value="Buy" />
+								</td>
+					</form>
+				</tr>					
+			</tbody>
+		</table>
+	
+		
+	{/module_installed}
+{/block}
+
