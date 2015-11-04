@@ -1,0 +1,215 @@
+<?php if (!defined('BASEPATH')) exit('No direct script access allowed');
+
+/**
+* Portfolio Model 
+*
+* Contains all the methods used to create, update, and delete portfolios.
+*
+* @author Steve West
+* @copyright Alphamental
+* 
+*
+*/
+
+class Portfolio_model extends CI_Model
+{
+	
+	
+	function __construct()
+	{
+		parent::__construct();
+		
+		$this->alphadb = $this->load->database('alpha', TRUE);
+		$this->db = $this->load->database('default', TRUE);		
+	}
+	
+	function __destruct()
+	{
+		$this->alphadb->close();	
+	}
+	/**
+	* Create New Portfolio
+	*
+	* @param string $user_id
+	* @param string $nickname
+	* @param string $url_path
+ 	*
+ 	* @return int $portfolio_id
+ 	*/ 										
+	function new_portfolio ($user_id) {		
+		
+		//$this->load->model('user_model');
+						
+		$this->alphadb->query('call a.APP_NEW_USR(' . $user_id .',@trading_cash)');
+		
+		$rs = $this->alphadb->query('select @trading_cash as trading_cash');
+		
+		$test = $rs->row_array();		
+		
+		return $test;
+	}
+	/**
+	*
+	*
+	*
+	*
+	*/
+	function portfolio_exists($user_id) {
+		$this->alphadb->query('call a.APP_IS_USR_READY(' . $user_id .',@is_ready)');
+		
+		$rs = $this->alphadb->query('select @is_ready as is_ready');
+		
+		$test = $rs->row_array();
+		
+		
+		
+		return $test;
+	}
+	//--------------------------------------------------------------------
+	/**
+	* Get User Custom Field
+	*
+	* @param int $custom_field_id
+	*
+	* @return boolean $custom_field or FALSE
+	*/
+	function get_custom_field ($id) {
+		$return = $this->get_custom_fields(array('id' => $id));
+
+		if (empty($return)) {
+			return FALSE;
+		}
+
+		return $return[0];
+	}
+
+	/**
+	* Get User Custom Fields
+	*
+	* Retrieves custom fields ordered by custom_field_order
+	*
+	* @param int $filters['id'] A custom field ID
+	* @param boolean $filters['registration_form'] Set to TRUE to retrieve registration form fields
+	* @param boolean $filters['not_in_admin'] Set to TRUE to not retrieve admin-only fields
+	*
+	* @return array $fields The custom fields
+	*/
+	function get_custom_fields ($filters = array()) {
+		$cache_string = md5(implode(',',$filters));
+		/*
+		if (isset($this->cache_fields[$cache_string])) {
+			return $this->cache_fields[$cache_string];
+		}*/
+
+		$this->load->model('custom_fields_model');
+
+		if (isset($filters['id'])) {
+			$this->db->where('user_field_id',$filters['id']);
+		}
+
+		if (isset($filters['registration_form']) and $filters['registration_form'] == TRUE) {
+			$this->db->where('user_field_registration_form','1');
+		}
+
+		if (isset($filters['not_in_admin']) and $filters['not_in_admin'] == TRUE) {
+			$this->db->where('user_field_admin_only','0');
+		}
+
+		$this->db->join('user_fields','custom_fields.custom_field_id = user_fields.custom_field_id','left');
+		$this->db->order_by('custom_fields.custom_field_order','ASC');
+
+		$this->db->select('user_fields.user_field_id');
+		$this->db->select('user_fields.user_field_billing_equiv');
+		$this->db->select('user_fields.user_field_admin_only');
+		$this->db->select('user_fields.user_field_registration_form');
+		$this->db->select('custom_fields.*');
+
+		$this->db->where('custom_field_group','1');
+
+		$result = $this->db->get('custom_fields');
+
+		if ($result->num_rows() == 0) {
+			return FALSE;
+		}
+
+		$billing_installed = module_installed('billing');
+
+		$fields = array();
+		foreach ($result->result_array() as $field) {
+			$fields[] = array(
+							'id' => $field['user_field_id'],
+							'custom_field_id' => $field['custom_field_id'],
+							'friendly_name' => $field['custom_field_friendly_name'],
+							'name' => $field['custom_field_name'],
+							'type' => $field['custom_field_type'],
+							'options' => (!empty($field['custom_field_options'])) ? unserialize($field['custom_field_options']) : array(),
+							'help' => $field['custom_field_help_text'],
+							'order' => $field['custom_field_order'],
+							'width' => $field['custom_field_width'],
+							'default' => $field['custom_field_default'],
+							'required' => ($field['custom_field_required'] == 1) ? TRUE : FALSE,
+							'validators' => (!empty($field['custom_field_validators'])) ? unserialize($field['custom_field_validators']) : array(),
+							'data' => (!empty($field['custom_field_data'])) ? unserialize($field['custom_field_data']) : array(),
+							'billing_equiv' => ($billing_installed === TRUE) ? $field['user_field_billing_equiv'] : '',
+							'admin_only' => ($field['user_field_admin_only'] == '1') ? TRUE : FALSE,
+							'registration_form' => ($field['user_field_registration_form'] == '1') ? TRUE : FALSE
+						);
+		}
+
+		//$this->cache_fields[$cache_string] = $fields;
+
+		return $fields;
+	}
+	
+	function get_hints ($hint) {
+		$this->db->like('symbol', $hint);
+		
+		$result = $this->db->get('tickers_nasdaq');
+
+		if ($result->num_rows() == 0) {
+			return FALSE;
+		}
+		
+		$fields = array();
+		foreach ($result->result_array() as $field) {
+			$fields[] = array(
+							'id' => $field['id'],
+							'symbol' => $field['symbol'],
+							'name' => $field['name']
+						);
+		}
+
+		return $fields;
+
+	}
+
+	function get_quote ($symbol) {
+		$output = array();
+		exec("/usr/local/lib/getquote.py $symbol", $output);
+		
+		$quotes = array();
+		
+		foreach ($output as $line) {
+			if ($line != "") {
+			$segment = explode("|", $line);
+			
+			$quotes[$segment[0]] = array(
+							'symbol' => $segment[0],
+							'last' => $segment[1],
+							'last_ts' => $segment[2],
+							'bid' => $segment[3],
+							'ask' => $segment[4],
+							'bid_size' => $segment[5],
+							'ask_size' => $segment[6]			
+							);
+			}			
+		}
+		echo '<pre>';
+		var_dump($quotes);
+		echo '</pre>';
+		
+		return $quotes;
+	}
+	
+	//--------------------------------------------------------------------
+}

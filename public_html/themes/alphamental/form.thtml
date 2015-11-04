@@ -1,0 +1,37 @@
+{extends file="layout.thtml"}
+{block name="title"}
+{$title} - {$smarty.block.parent}
+{/block}
+{block name="content"}
+	<h1>{$title}</h1>
+	{if $text}{$text}{/if}
+	
+		
+		{if $validation_errors}
+			<div class="errors">
+				{$validation_errors}
+			</div>
+		{/if}
+		
+		<form class="form validate" enctype="multipart/form-data" method="post" action="/portfolios/submit">
+			<input {if $data.ticker_symbol}value="{$data.ticker_symbol}"{/if}class="symbol" type="text" name="ticker_symbol" placeholder="ticker" onkeyup="showHint(this.value)" autocomplete="off" /><br />
+			<select name="position">
+			  <option {if $data.position=="0"}selected="selected" {/if}value="0">BUY TO OPEN</option>
+			  <option {if $data.position=="1"}selected="selected" {/if}value="1">SELL TO OPEN</option>
+			  <option {if $data.position=="2"}selected="selected" {/if}value="2">BUY TO CLOSE</option>
+			  <option {if $data.position=="3"}selected="selected" {/if}value="3">SELL TO CLOSE</option>
+			</select><br /> 
+			<input {if $data.size}value="{$data.size}"{/if}type="text" name="size" placeholder="size"/><br />
+			<select name="disclosure" style="width:250px;">
+			  <option {if $data.disclosure=="0"}selected="selected" {/if}value="0">I own this position</option>
+			  <option {if $data.disclosure=="1"}selected="selected" {/if}value="1">I own the opposite position</option>
+			  <option {if $data.disclosure=="2"}selected="selected" {/if}value="2">I do not own this position, and will not own this position or it's opposite within the next 72hr </option>
+			  <option {if $data.disclosure=="3"}selected="selected" {/if}value="3">I will own this position within the next 72hr</option>
+			  <option {if $data.disclosure=="4"}selected="selected" {/if}value="4">I will own the opposite position within the next 72hr</option>
+			</select><br />
+			<input {if $data.comments}value="{$data.comments}"{/if}type="text" name="comments" placeholder="comments"/><br />				
+			<button type="submit" class="review" value="Submit">Submit</button>			
+		</form>
+
+		
+{/block}

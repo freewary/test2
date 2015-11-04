@@ -1,0 +1,173 @@
+{extends file="layout.thtml"}
+
+{block name="head_includes"}
+<link href="{theme_url path="css/autosuggest_inquisitor.css"}" rel="stylesheet" type="text/css" media="screen" />
+{/block}
+
+{block name="main-tabs"}
+
+{/block}
+{block name="content"}
+
+<script>
+function showHint(str) {ldelim}
+    if (str.length == 0) {ldelim}
+        document.getElementById("ticker").innerHTML = "";
+        return;
+    {rdelim} else {ldelim}
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = function() {ldelim}
+            if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {ldelim}
+                document.getElementById("ticker").innerHTML = xmlhttp.responseText;
+				document.getElementById('ticker').style.display = "block";
+				document.getElementById('ticker').style.backgroundColor = "#fff";
+            {rdelim}
+        {rdelim}
+        xmlhttp.open("GET", "./portfolios/gethint/" + str, true);
+        xmlhttp.send();
+    {rdelim}
+{rdelim}
+</script>
+
+	<h1>My Portfolio</h1>
+	
+	{if $notice}
+		<div class="notices">
+			<p>{$notice}</p>
+		</div>
+	{/if}
+	<!-- Main Tabs start here -->
+			<ul class="main">
+				<li class="tab-link current" data-tab="main-1">Tab One</li>
+				<li class="tab-link" data-tab="main-2">Tab Two</li>
+				<li class="tab-link" data-tab="main-3">Tab Three</li>
+				<li class="tab-link" data-tab="main-4">Tab Four</li>
+			</ul>
+	<div id="main-1" class="maintab-content current">
+		
+			<!-- Sub Tabs start here -->
+			<ul class="subs">
+				<li class="tab-link current" data-tab="tab-1">My Portfolio</li>
+				<li class="tab-link" data-tab="tab-2">Tab Two</li>
+				<li class="tab-link" data-tab="tab-3">Tab Three</li>
+				<li class="tab-link" data-tab="tab-4">Tab Four</li>
+			</ul>
+
+			<div id="tab-1" class="subtab-content current">
+			 Current Trading Cash: &#36;{$cash.trading_cash|commify}
+				<table>
+					<thead>
+					<tr>
+						<td></td>
+						<td>Ticker</td>
+						<td>Name</td>
+						<td>L/S</td>
+						<td>Date</td>
+						<td>Entry</td>
+						<td>Last</td>
+						<td>Return</td>
+						<td>Alpha</td>
+						<td>Size</td>
+						<td></td>
+					</tr>
+					</thead>
+					<tbody>
+					{if $trades}
+					{foreach $trades as $trade}
+					{assign var="trade_id" value=$trade.id}
+						<tr>
+							<td></td>
+							<td><b>{$trade.ticker_symbol}</b></td>
+							<td>NAME</td>
+							<td></td>
+							<td>{$trade.transaction_date}</td>
+							<td><b>{$trade.quantity|commify}</b></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td>
+							<form class="form validate" enctype="multipart/form-data" method="post" action="{url path="portfolios/trade/sell/{$trade.trade_id}"}">
+								<input type="submit" class="button" name="sell" value="Sell" />
+							</form>
+							</td>
+						</tr>			
+					{/foreach}
+					{else}
+						<p>You have no trades in your portfolio.</p>
+					{/if}
+					<tr>
+					<form class="form validate" enctype="multipart/form-data" method="post" action="{url path="portfolios/trade/buy"}">
+						{if $validation_errors}
+							<div class="errors">
+								{$validation_errors}
+							</div>							
+						{/if}
+									
+								
+								<td></td>								
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+					</form>
+				</tr>
+					</tbody>
+					
+					
+				</table>
+			</div>
+			<div id="tab-2" class="subtab-content">
+				 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+			</div>
+			<div id="tab-3" class="subtab-content">
+				Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+			</div>
+			<div id="tab-4" class="subtab-content">
+				Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+			</div>
+			<!-- Sub Tabs end here -->
+			
+			
+			
+		</div>
+		
+		<div id="main-2" class="maintab-content">
+				 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		</div>
+		<div id="main-3" class="maintab-content">
+				Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+		</div>
+		<div id="main-4" class="maintab-content">
+				Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+		</div>
+		<!-- Main tabs ends here -->
+		
+	{module_installed name="portfolios"}
+	
+		
+		
+	
+		
+	{/module_installed}
+{/block}
+{block name="footer_includes"}
+<script type="text/javascript">
+	var options = {ldelim}
+		script:"./portfolios/get_hints?json=true&",
+		varname:"input",
+		json:true,
+		callback: function (obj) {ldelim} document.getElementById('testid').value = obj.id; {rdelim}
+	{rdelim};
+	var as_json = new AutoSuggest('testinput', options);
+	
+	
+	var options_xml = {ldelim}
+		script:"./portfolios/get_hints?",
+		varname:"input"
+	{rdelim};
+	var as_xml = new AutoSuggest('testinput_xml', options_xml);
+</script>
+{/block}
