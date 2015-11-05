@@ -1,0 +1,2 @@
+This folder is for server side scripts that will run based on a crontab task.
+
