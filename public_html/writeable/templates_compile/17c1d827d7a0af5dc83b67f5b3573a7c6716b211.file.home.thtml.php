@@ -1,13 +1,13 @@
-<?php /* Smarty version Smarty-3.0.6, created on 2015-11-06 01:36:50
-         compiled from "/var/www/vhosts/example.com/public_html/themes/alphamental/portfolio.thtml" */ ?>
-<?php /*%%SmartyHeaderCode:2071241613563c0432ec4966-54236472%%*/if(!defined('SMARTY_DIR')) exit('no direct access allowed');
+<?php /* Smarty version Smarty-3.0.6, created on 2015-11-05 03:10:15
+         compiled from "/var/www/vhosts/example.com/public_html/themes/alphamental/account_templates/home.thtml" */ ?>
+<?php /*%%SmartyHeaderCode:1109490883563ac897a2cdb4-61355378%%*/if(!defined('SMARTY_DIR')) exit('no direct access allowed');
 $_smarty_tpl->decodeProperties(array (
   'file_dependency' => 
   array (
-    '333247728e5c739b49d9f55229a7839bb89c87f2' => 
+    '17c1d827d7a0af5dc83b67f5b3573a7c6716b211' => 
     array (
-      0 => '/var/www/vhosts/example.com/public_html/themes/alphamental/portfolio.thtml',
-      1 => 1446773805,
+      0 => '/var/www/vhosts/example.com/public_html/themes/alphamental/account_templates/home.thtml',
+      1 => 1429922904,
       2 => 'file',
     ),
     '5203adcf46ca1091c3d4ffee2ff1915a78f88b2e' => 
@@ -17,7 +17,7 @@ $_smarty_tpl->decodeProperties(array (
       2 => 'file',
     ),
   ),
-  'nocache_hash' => '2071241613563c0432ec4966-54236472',
+  'nocache_hash' => '1109490883563ac897a2cdb4-61355378',
   'function' => 
   array (
   ),
@@ -30,7 +30,8 @@ if (!is_callable('smarty_block_login_form')) include 'app/modules/users/template
 if (!is_callable('smarty_function_menu')) include 'app/modules/menu_manager/template_plugins/function.menu.php';
 if (!is_callable('smarty_block_has_cart')) include 'app/modules/store/template_plugins/block.has_cart.php';
 if (!is_callable('smarty_function_cart_items')) include 'app/modules/store/template_plugins/function.cart_items.php';
-if (!is_callable('smarty_modifier_commify')) include '/var/www/vhosts/example.com/public_html/app/libraries/smarty/plugins/modifier.commify.php';
+if (!is_callable('smarty_block_has_subscriptions')) include 'app/modules/billing/template_plugins/block.has_subscriptions.php';
+if (!is_callable('smarty_block_subscriptions')) include 'app/modules/billing/template_plugins/block.subscriptions.php';
 if (!is_callable('smarty_modifier_date_format')) include '/var/www/vhosts/example.com/public_html/app/libraries/smarty/plugins/modifier.date_format.php';
 ?><!DOCTYPE html>
 <html>
@@ -38,7 +39,9 @@ if (!is_callable('smarty_modifier_date_format')) include '/var/www/vhosts/exampl
 <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
 <base href="<?php echo smarty_function_url(array(),$_smarty_tpl);?>
 " />
-<title><?php echo smarty_function_setting(array('name'=>"site_name"),$_smarty_tpl);?>
+<title>
+Account Manager - <?php echo smarty_function_setting(array('name'=>"site_name"),$_smarty_tpl);?>
+
 </title>
 
 <!-- Add CSS callouts below here -->
@@ -57,8 +60,6 @@ if (!is_callable('smarty_modifier_date_format')) include '/var/www/vhosts/exampl
 " type="text/javascript"></script>
   
 
-<link href="<?php echo smarty_function_theme_url(array('path'=>"css/autosuggest_inquisitor.css"),$_smarty_tpl);?>
-" rel="stylesheet" type="text/css" media="screen" />
 
 </head>
 <body>
@@ -209,162 +210,96 @@ if (!is_callable('smarty_modifier_date_format')) include '/var/www/vhosts/exampl
 		<!-- Main content starts here -->
 		<div class="inner_content">
 		
-
-<script>
-function showHint(str) {
-    if (str.length == 0) {
-        document.getElementById("ticker").innerHTML = "";
-        return;
-    } else {
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = function() {
-            if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                document.getElementById("ticker").innerHTML = xmlhttp.responseText;
-				document.getElementById('ticker').style.display = "block";
-				document.getElementById('ticker').style.backgroundColor = "#fff";
-            }
-        }
-        xmlhttp.open("GET", "./portfolios/gethint/" + str, true);
-        xmlhttp.send();
-    }
-}
-</script>
-
+	<h1>Account Manager</h1>
+	
 	<?php if ($_smarty_tpl->getVariable('notice')->value){?>
 		<div class="notices">
 			<p><?php echo $_smarty_tpl->getVariable('notice')->value;?>
 </p>
 		</div>
 	<?php }?>
-	<!-- Main Tabs start here -->
-			<ul class="main">
-				<li class="tab-link current" data-tab="main-1">Positions</li>
-				<li class="tab-link" data-tab="main-2">Transactions</li>				
-			</ul>
-	<div id="main-1" class="maintab-content current">
-			Current Trading Cash: &#36;<?php echo smarty_modifier_commify($_smarty_tpl->getVariable('cash')->value['trading_cash']);?>
-
-				<table>
-					<thead>
-						<tr>
-							<td></td>
-							<td>Ticker</td>
-							<td>Name</td>
-							<td>L/S</td>
-							<td>Duration</td>
-							<td>Shares</td>
-							<td>Total Size</td>
-							<td>Entry Px</td>
-							<td>Last Px</td>
-							<td>Beta P/L</td>
-							<td>Alpha P/L</td>
-						</tr>
-					</thead>
-					<tbody>
-					<!-- Begin Sample Rows -->
-						<tr>
-							<td></td>
-							<td>AAPL</td>
-							<td>Apple Inc.</td>
-							<td>S</td>
-							<td>178d</td>
-							<td>-78000</td>
-							<td>&#36;9,560,500</td>
-							<td>&#36;128.25</td>
-							<td>&#36;122.57</td>
-							<td>+4.4%</td>
-							<td>+4.5%</td>
-						</tr>
-						<tr>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-						</tr>
-						<tr>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-						</tr>
-						<!-- End Sample Rows -->
-					<?php if ($_smarty_tpl->getVariable('trades')->value){?>
-					<?php  $_smarty_tpl->tpl_vars['trade'] = new Smarty_Variable;
- $_from = $_smarty_tpl->getVariable('trades')->value; if (!is_array($_from) && !is_object($_from)) { settype($_from, 'array');}
-if ($_smarty_tpl->_count($_from) > 0){
-    foreach ($_from as $_smarty_tpl->tpl_vars['trade']->key => $_smarty_tpl->tpl_vars['trade']->value){
-?>
-					<?php $_smarty_tpl->tpl_vars["trade_id"] = new Smarty_variable($_smarty_tpl->tpl_vars['trade']->value['id'], null, null);?>
-						<tr>
-							<td></td>
-							<td><b><?php echo $_smarty_tpl->tpl_vars['trade']->value['ticker_symbol'];?>
-</b></td>
-							<td>NAME</td>
-							<td></td>
-							<td><?php echo $_smarty_tpl->tpl_vars['trade']->value['transaction_date'];?>
-</td>
-							<td><b><?php echo smarty_modifier_commify($_smarty_tpl->tpl_vars['trade']->value['quantity']);?>
-</b></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td>
-							<form class="form validate" enctype="multipart/form-data" method="post" action="<?php echo smarty_function_url(array('path'=>"portfolios/trade/sell/".($_smarty_tpl->tpl_vars['trade']->value['trade_id'])),$_smarty_tpl);?>
-">
-								<input type="submit" class="button" name="sell" value="Sell" />
-							</form>
-							</td>
-						</tr>			
-					<?php }} ?>
-					<?php }else{ ?>
-						<p>You have no trades in your portfolio.</p>
-					<?php }?>
-					<tr>
-					<form class="form validate" enctype="multipart/form-data" method="post" action="<?php echo smarty_function_url(array('path'=>"portfolios/trade/buy"),$_smarty_tpl);?>
-">
-						<?php if ($_smarty_tpl->getVariable('validation_errors')->value){?>
-							<div class="errors">
-								<?php echo $_smarty_tpl->getVariable('validation_errors')->value;?>
-
-							</div>							
-						<?php }?>								
-								<td></td>								
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
-					</form>
-					</tr>
-					</tbody>					
-				</table>			
-		</div>
-		
-		<div id="main-2" class="maintab-content">
-				 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-		</div>
-		
-		<!-- Main tabs ends here -->
-		
-			
 	
+	<p>Hello, <?php echo $_smarty_tpl->getVariable('member')->value['first_name'];?>
+!</p>
+	<p>Welcome back to your account manager.  Here, you can review your account records, update your profile and password, and review
+	your purchases.</p>
+	<ul class="account_links">
+		<li><a href="<?php echo smarty_function_url(array('path'=>"users/profile"),$_smarty_tpl);?>
+">Edit your profile</a></li>
+		<li><a href="<?php echo smarty_function_url(array('path'=>"users/password"),$_smarty_tpl);?>
+">Change your password</a></li>
 		
+			<li><a href="<?php echo smarty_function_url(array('path'=>"users/invoices"),$_smarty_tpl);?>
+">View all invoices</a></li>
+		
+		<li><a href="<?php echo smarty_function_url(array('path'=>"users/logout"),$_smarty_tpl);?>
+">Logout</a></li>
+	</ul>
+	
+	
+		<?php $_smarty_tpl->smarty->_tag_stack[] = array('has_subscriptions', array()); $_block_repeat=true; smarty_block_has_subscriptions(array(), null, $_smarty_tpl, $_block_repeat);while ($_block_repeat) { ob_start();?>
+
+		<table class="table" cellpadding="0" cellspacing="0">
+			<thead>
+				<tr>
+					<td colspan="2">Your Subscriptions</td>
+				</tr>
+			</thead>
+			<tbody>
+			<?php $_smarty_tpl->smarty->_tag_stack[] = array('subscriptions', array('var'=>"sub",'active'=>true)); $_block_repeat=true; smarty_block_subscriptions(array('var'=>"sub",'active'=>true), null, $_smarty_tpl, $_block_repeat);while ($_block_repeat) { ob_start();?>
+
+			<?php $_smarty_tpl->tpl_vars["sub_id"] = new Smarty_variable($_smarty_tpl->getVariable('sub')->value['id'], null, null);?>
+				<tr>
+					<td style="width:50%"><b><?php echo $_smarty_tpl->getVariable('sub')->value['plan']['name'];?>
+</b></td>
+					<td>
+						<?php if ($_smarty_tpl->getVariable('sub')->value['is_recurring']==true){?>Next Charge: <?php echo smarty_modifier_date_format($_smarty_tpl->getVariable('sub')->value['next_charge_date'],"%B %e, %Y");?>
+
+						<?php }else{ ?>Expires: <?php echo smarty_modifier_date_format($_smarty_tpl->getVariable('sub')->value['end_date'],"%B %e, %Y");?>
+<?php }?>
+						<?php if ($_smarty_tpl->getVariable('sub')->value['is_renewed']==true){?> (Renewed)<?php }?>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<ul class="sub_options">
+							<?php if ($_smarty_tpl->getVariable('sub')->value['card_last_four']&&$_smarty_tpl->getVariable('sub')->value['is_recurring']){?>
+								<li>
+									<a href="<?php echo $_smarty_tpl->getVariable('sub')->value['update_cc_link'];?>
+">Update Credit Card Information</a>
+								</li>
+							<?php }?>
+							<?php if ($_smarty_tpl->getVariable('sub')->value['last_charge_date']){?>
+								<li>
+									<a href="<?php echo smarty_function_url(array('path'=>"users/invoices/".($_smarty_tpl->getVariable('sub_id')->value)),$_smarty_tpl);?>
+">View Related Invoices</a>
+								</li>
+							<?php }?>
+							<?php if ($_smarty_tpl->getVariable('sub')->value['is_recurring']){?>
+								<li>
+									<a href="<?php echo $_smarty_tpl->getVariable('sub')->value['cancel_link'];?>
+">Cancel Subscription</a>
+								</li>
+							<?php }?>
+							<?php if ($_smarty_tpl->getVariable('sub')->value['is_renewed']==false&&$_smarty_tpl->getVariable('sub')->value['last_charge_date']){?>
+								<li>
+									<a href="<?php echo $_smarty_tpl->getVariable('sub')->value['renew_link'];?>
+">Renew Subscription</a>
+								</li>
+							<?php }?>
+							
+							<?php if (!$_smarty_tpl->getVariable('sub')->value['is_recurring']&&!$_smarty_tpl->getVariable('sub')->value['last_charge_date']){?>
+								<li>No options available.</li>
+							<?php }?>
+						</ul>
+					</td>
+				</tr>
+			<?php $_block_content = ob_get_clean(); $_block_repeat=false; echo smarty_block_subscriptions(array('var'=>"sub",'active'=>true), $_block_content, $_smarty_tpl, $_block_repeat);  } array_pop($_smarty_tpl->smarty->_tag_stack);?>
+
+			</tbody>
+		</table>
+		<?php $_block_content = ob_get_clean(); $_block_repeat=false; echo smarty_block_has_subscriptions(array(), $_block_content, $_smarty_tpl, $_block_repeat);  } array_pop($_smarty_tpl->smarty->_tag_stack);?>
+
 	
 
 		</div>
@@ -477,21 +412,6 @@ function hintValue(str2) {
 </script>
 <?php }?>
 
-<script type="text/javascript">
-	var options = {
-		script:"./portfolios/get_hints?json=true&",
-		varname:"input",
-		json:true,
-		callback: function (obj) { document.getElementById('testid').value = obj.id; }
-	};
-	var as_json = new AutoSuggest('testinput', options);
-	
-	
-	var options_xml = {
-		script:"./portfolios/get_hints?",
-		varname:"input"
-	};
-	var as_xml = new AutoSuggest('testinput_xml', options_xml);
-</script>
+
 
 </html>

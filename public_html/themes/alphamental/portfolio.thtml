@@ -29,8 +29,6 @@ function showHint(str) {ldelim}
 {rdelim}
 </script>
 
-	<h1>My Portfolio</h1>
-	
 	{if $notice}
 		<div class="notices">
 			<p>{$notice}</p>
@@ -38,40 +36,69 @@ function showHint(str) {ldelim}
 	{/if}
 	<!-- Main Tabs start here -->
 			<ul class="main">
-				<li class="tab-link current" data-tab="main-1">Tab One</li>
-				<li class="tab-link" data-tab="main-2">Tab Two</li>
-				<li class="tab-link" data-tab="main-3">Tab Three</li>
-				<li class="tab-link" data-tab="main-4">Tab Four</li>
+				<li class="tab-link current" data-tab="main-1">Positions</li>
+				<li class="tab-link" data-tab="main-2">Transactions</li>				
 			</ul>
 	<div id="main-1" class="maintab-content current">
-		
-			<!-- Sub Tabs start here -->
-			<ul class="subs">
-				<li class="tab-link current" data-tab="tab-1">My Portfolio</li>
-				<li class="tab-link" data-tab="tab-2">Tab Two</li>
-				<li class="tab-link" data-tab="tab-3">Tab Three</li>
-				<li class="tab-link" data-tab="tab-4">Tab Four</li>
-			</ul>
-
-			<div id="tab-1" class="subtab-content current">
-			 Current Trading Cash: &#36;{$cash.trading_cash|commify}
+			Current Trading Cash: &#36;{$cash.trading_cash|commify}
 				<table>
 					<thead>
-					<tr>
-						<td></td>
-						<td>Ticker</td>
-						<td>Name</td>
-						<td>L/S</td>
-						<td>Date</td>
-						<td>Entry</td>
-						<td>Last</td>
-						<td>Return</td>
-						<td>Alpha</td>
-						<td>Size</td>
-						<td></td>
-					</tr>
+						<tr>
+							<td></td>
+							<td>Ticker</td>
+							<td>Name</td>
+							<td>L/S</td>
+							<td>Duration</td>
+							<td>Shares</td>
+							<td>Total Size</td>
+							<td>Entry Px</td>
+							<td>Last Px</td>
+							<td>Beta P/L</td>
+							<td>Alpha P/L</td>
+						</tr>
 					</thead>
 					<tbody>
+					<!-- Begin Sample Rows -->
+						<tr>
+							<td></td>
+							<td>AAPL</td>
+							<td>Apple Inc.</td>
+							<td>S</td>
+							<td>178d</td>
+							<td>-78000</td>
+							<td>&#36;9,560,500</td>
+							<td>&#36;128.25</td>
+							<td>&#36;122.57</td>
+							<td>+4.4%</td>
+							<td>+4.5%</td>
+						</tr>
+						<tr>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+						</tr>
+						<tr>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td></td>
+						</tr>
+						<!-- End Sample Rows -->
 					{if $trades}
 					{foreach $trades as $trade}
 					{assign var="trade_id" value=$trade.id}
@@ -102,9 +129,7 @@ function showHint(str) {ldelim}
 							<div class="errors">
 								{$validation_errors}
 							</div>							
-						{/if}
-									
-								
+						{/if}								
 								<td></td>								
 								<td></td>
 								<td></td>
@@ -113,42 +138,18 @@ function showHint(str) {ldelim}
 								<td></td>
 								<td></td>
 					</form>
-				</tr>
-					</tbody>
-					
-					
-				</table>
-			</div>
-			<div id="tab-2" class="subtab-content">
-				 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-			</div>
-			<div id="tab-3" class="subtab-content">
-				Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-			</div>
-			<div id="tab-4" class="subtab-content">
-				Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-			</div>
-			<!-- Sub Tabs end here -->
-			
-			
-			
+					</tr>
+					</tbody>					
+				</table>			
 		</div>
 		
 		<div id="main-2" class="maintab-content">
 				 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 		</div>
-		<div id="main-3" class="maintab-content">
-				Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-		</div>
-		<div id="main-4" class="maintab-content">
-				Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-		</div>
+		
 		<!-- Main tabs ends here -->
 		
-	{module_installed name="portfolios"}
-	
-		
-		
+	{module_installed name="portfolios"}		
 	
 		
 	{/module_installed}
