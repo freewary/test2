@@ -3,7 +3,7 @@ Alphamental
 
 [Alphamental] (http://sandy.masterphreak.com/)
 
-## Server Requirments
+## Server Requirements
 
 This project is base on the open source Hero Framework
 
