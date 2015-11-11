@@ -14,7 +14,7 @@
 |	http://example.com/
 |
 */
-$config['base_url'] = "http://www.example.com/";
+$config['base_url'] = "http://sandy.masterphreak.com/";
 
 // rewrite base URL to SSL if accessed via SSL
 if (is_secure()) {
@@ -30,8 +30,8 @@ if (is_secure()) {
 | enabled you MUST set an encryption key.  See the user guide for info.
 |
 */
-$config['encryption_key'] = "acd840cec3b3228d009f8290359826e8";
-$config['cron_key'] = 'fc3a4c46ca02dc32dc777059e9358997';
+$config['encryption_key'] = "6bc1f3c37e226b746248c366f4df8a52";
+$config['cron_key'] = '91e318162b0a5452a771e5ebda390a11';
 
 /* END MANDATORY CONFIGURATION */
 
@@ -72,7 +72,7 @@ if (ini_get('post_max_size') != '' and (ini_get('post_max_size') < $config['uplo
 }
 
 // not all servers allow 0777 folders/files, this may have to be 0755
-$config['write_mode'] = 0777;
+$config['write_mode'] = 0755;
 
 // how many times can a purchased download be downloaded?
 $config['maximum_downloads_per_purchase'] = 2;

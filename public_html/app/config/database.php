@@ -38,9 +38,9 @@ $active_group = "default";
 $active_record = TRUE;
 
 $db['default']['hostname'] = "localhost";
-$db['default']['username'] = "root";
+$db['default']['username'] = "sandbox";
 $db['default']['password'] = '5j8u5k3e';
-$db['default']['database'] = "hero_example";
+$db['default']['database'] = "hero_sandbox";
 $db['default']['dbdriver'] = "mysql";
 $db['default']['dbprefix'] = "";
 $db['default']['pconnect'] = TRUE;
@@ -52,7 +52,7 @@ $db['default']['dbcollat'] = "utf8_general_ci";
 
 $db['alpha']['hostname'] = "localhost";
 $db['alpha']['username'] = "root";
-$db['alpha']['password'] = '5j8u5k3e';
+$db['alpha']['password'] = 'S@ndb0x';
 $db['alpha']['database'] = "a";
 $db['alpha']['dbdriver'] = "mysql";
 $db['alpha']['dbprefix'] = "";
@@ -62,7 +62,6 @@ $db['alpha']['cache_on'] = FALSE;
 $db['alpha']['cachedir'] = "";
 $db['alpha']['char_set'] = "utf8";
 $db['alpha']['dbcollat'] = "utf8_general_ci";
-
 
 /* End of file database.php */
 /* Location: ./app/config/database.php */
