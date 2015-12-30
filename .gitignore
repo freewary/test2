@@ -1,15 +1,17 @@
 # Ignore Mac folder files
 *.DS_Store
+*.*.swp
 
 # Ignore folders with custom or
 # temporary files that don't need
 # storing with the repo
-app/config/config.php
-app/config/database.php
-app/config/installed.php
-writeable/gateway_log.txt
-writeable/custom_uploads/*
-writeable/editor_uploads/*
-writeable/image_thumbs/*
-writeable/templates_cache/*
-writeable/templates_compile/*
+public_html/app/config/config.php
+public_html/app/config/database.php
+public_html/app/config/installed.php
+public_html/app/cache/*
+public_html/writeable/gateway_log.txt
+public_html/writeable/custom_uploads/*
+public_html/writeable/editor_uploads/*
+public_html/writeable/image_thumbs/*
+public_html/writeable/templates_cache/*
+public_html/writeable/templates_compile/*
