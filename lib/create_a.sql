@@ -3,6 +3,13 @@
 #create schema a;
 use a;
 
+#drop view a.v_positions;
+#drop table a.t_positions_closed;
+#drop table a.t_positions_opened;
+#drop table a.t_orders;
+#drop procedure a.APP_IS_ORDER_VALID
+#drop view a.APP_V_ORDER_TYPES;
+#drop table a.t_order_types;
 #drop database tmp;
 #drop USER etl_LOAD@localhost;
 #drop table a.t_eod_data;
@@ -396,7 +403,7 @@ select
 from a.t_rel_provider_exch_security
 group by Exch_k,Provider_k,Exch_Symbol;
 
-create view a.APP_v_symbols as
+create view a.APP_V_SYMBOLS as
 Select
 	res.Exch_k
 	,e.Nm as Exchange
@@ -438,7 +445,7 @@ create table a.t_eod_data(
 #create a user to execute etl process that loads end of day data
 CREATE USER etl_LOAD@localhost IDENTIFIED BY 'm@ry6had6A6l!ttle6mamm()th';
 create database tmp;
-grant select on a.APP_v_symbols to etl_LOAD@localhost;
+grant select on a.APP_V_SYMBOLS to etl_LOAD@localhost;
 grant insert, select on a.t_eod_data to etl_LOAD@localhost;
 #The manual claims that if a user has rights to create a temporary table
 #that no further privilege checks are done on that table, but it seems that
@@ -452,43 +459,185 @@ grant file on *.* to etl_LOAD@localhost;
 #note also need to define secure_file_priv and limit file ops to that directory
 #needs to be outside mysql folder, and also need to update apparmor profile
 
-create table a.t_order_type (
-	OrderType_k tinyint,
-	Order_Type varchar(50) not null,
-	PRIMARY KEY (OrderType_k),
-	UNIQUE KEY Usr_uk_Order_Type (Order_Type)
+CREATE TABLE a.t_order_types (
+  OrderType_k tinyint(4) NOT NULL,
+  Order_Type varchar(50) NOT NULL,
+  Multiplier float not null,
+  PRIMARY KEY (OrderType_k),
+  UNIQUE KEY Usr_uk_Order_Type (Order_Type)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+insert into a.t_order_types (OrderType_k,Order_Type,Multiplier) values
+	(0,'Buy to Open',1)
+	,(1,'Buy to Close',1)
+	,(2,'Sell to Open',-1)
+	,(3,'Sell to Close',-1);
+
+create view a.APP_V_ORDER_TYPES as
+select OrderType_k,Order_Type,Multiplier from a.t_order_types;
+
+#no contstraint on userkey because it is an alienkey
 Create table a.t_orders(
-	Order_k bigint(20) not null
+	Order_k bigint(20) not null auto_increment
 	,Submit_tmsp datetime not null
 	,User_ak bigint(20) NOT NULL
 	,Security_k bigint(20) not null
-	,OrderType_k tinyint not null
+	,OrderType_k tinyint(4) not null
 	,Qty_Limit bigint(20) not null
-	,Price_Limit bigint(20) not null
+	,Price_Limit double not null
 	,Accepted_ind boolean not null
 	,primary key (Order_k,Submit_tmsp,User_ak,Security_k)
-	
+	,CONSTRAINT fk_t_rel_securities2 FOREIGN KEY (Security_k) REFERENCES t_securities(Security_k) ON DELETE NO ACTION ON UPDATE NO ACTION
+	,CONSTRAINT fk_t_rel_order_type FOREIGN KEY (OrderType_k) REFERENCES t_order_types(OrderType_k) ON DELETE NO ACTION ON UPDATE NO ACTION
 	)ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 
-
-
-CREATE TABLE a.t_positions_entered (
-  TransTmsp datetime NOT NULL,
-  User_ak bigint(20) NOT NULL,
-  Security_k bigint(20) not null,
-
-
-
-  Credit_CashAcct_k bigint(20) NOT NULL,
-  Debit_CashAcct_k bigint(20) NOT NULL,
-  Amt double NOT NULL,
-  PRIMARY KEY (TransTmsp,User_ak,Credit_CashAcct_k),
-  KEY fk_t_cash_trans_credit_idx (Credit_CashAcct_k),
-  KEY fk_t_cash_trans_debit_idx (Debit_CashAcct_k),
-  CONSTRAINT fk_t_cash_trans_credit FOREIGN KEY (Credit_CashAcct_k) REFERENCES t_cash_acct (Acct_k) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT fk_t_cash_trans_debit FOREIGN KEY (Debit_CashAcct_k) REFERENCES t_cash_acct (Acct_k) ON DELETE NO ACTION ON UPDATE NO ACTION
+CREATE TABLE a.t_positions_opened (
+	TransTmsp datetime NOT NULL
+	,User_ak bigint(20) NOT NULL
+	,Security_k bigint(20) not null
+	,Order_k bigint(20) not null
+	,Qty bigint(20) not null
+	,Price double NOT NULL
+	,PRIMARY KEY (TransTmsp,User_ak,Security_k)
+	,CONSTRAINT fk_securities_positions_opened FOREIGN KEY (Security_k) REFERENCES t_securities(Security_k) ON DELETE NO ACTION ON UPDATE NO ACTION
+	,CONSTRAINT fk_t_rel_orders FOREIGN KEY (Order_k) REFERENCES t_orders(Order_k) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+create table a.t_positions_closed (
+	TransTmsp_opened datetime NOT NULL
+	,User_ak bigint(20) NOT NULL
+	,Security_k bigint(20) not null
+	,TransTmsp_closed datetime NOT NULL
+	,Order_k bigint(20) not null
+	,Qty bigint(20) not null
+	,Price double NOT NULL
+	,PRIMARY KEY (TransTmsp_opened,User_ak,Security_k,TransTmsp_closed)
+	,CONSTRAINT fk_t_rel_securities4 FOREIGN KEY (Security_k) REFERENCES t_securities(Security_k) ON DELETE NO ACTION ON UPDATE NO ACTION
+	,constraint fk_orders_positions foreign key (Order_k) references t_orders(Order_k) ON DELETE NO ACTION ON UPDATE NO ACTION
+	,constraint fk_positions_opened_positions_closed 
+		foreign key (TransTmsp_opened,User_ak,Security_k)
+		references t_positions_opened(TransTmsp,User_ak,Security_k) 
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+create view a.v_positions as
+SELECT 
+	o.TransTmsp
+    ,o.User_ak
+    ,o.Security_k
+    ,max(o.Qty) as Qty_Opened
+    ,max(o.Price) as Price_Opened
+	,sum(c.Qty) as Qty_Closed
+	,max(o.Qty) - sum(c.Qty) as Qty_Open
+	,sum(c.Qty * c.Price) / sum(c.Qty) as Price_Closed_Avg
+FROM a.t_positions_opened o
+	left outer join a.t_positions_closed c
+		on c.TransTmsp_opened = o.TransTmsp
+			and c.User_ak = o.User_ak
+			and c.Security_k = o.Security_k
+group by o.TransTmsp
+    ,o.User_ak
+    ,o.Security_k;
+
+create view a.v_APP_USR_VARIABLES as
+select
+
+
+#Order validation requires user inputs of:
+#User, securitykey, price quote, order type, share qty, price limit
+#and needs the follwing from the database
+#share counts for the symbol, current position, 
+
+drop procedure a.APP_IS_ORDER_VALID;
+DELIMITER $$
+create procedure a.APP_IS_ORDER_VALID(p_Usr_ak bigint
+										,p_Security_k bigint(20)
+										,p_Market_Price float
+										,p_OrderType_k tinyint(4)
+										,p_Order_Qty bigint(20)
+										,p_Price_Limit float
+										,out o_is_valid int
+										,out o_msg varchar(65535)
+										)
+APP_IS_ORDER_VALID_label:begin
+	declare p_msg varchar(5000) default '';
+	declare p_ot_check int;
+	declare p_qty_check int;
+	#returns 1 if order is accepted, 0 if not accepted
+	#If order is not accepted, needs to return a message of ALL reasons why
+
+	#All checks:
+
+	#User has established an account?
+	CALL a.APP_IS_USR_READY(p_Usr_ak, @o_is_usr_ready);
+	if @o_is_usr_ready = 0 then
+			select 0,'User account must be configured prior to placing order.' into o_is_valid,o_msg;
+			leave APP_IS_ORDER_VALID_label;
+			#return 0, 'User account must be configured prior to placing order.'
+		end if;
+
+	#get the user's net position in this security
+	select sum(Qty_Open) into @p_net_position from a.v_positions
+	where a.v_positions.User_ak = p_Usr_ak and a.v_positions.Security_k = p_Security_k;
+	#where User_ak = p_Usr_ak and a.v_positions.Security_k = p_Security_k;
+
+	#Users existing position is compatible with order type?
+	case p_OrderType_k
+		when 0 then
+			#buy to open- must not have a short position, net position must be >= 0
+			if @p_net_position < 0 then
+					set p_ot_check = 0;
+					set p_msg = 'User may not initiate a long position due to existing short position';
+			else set p_ot_check = 1;
+			end if;
+		when 1 then
+			#buy to close, must have a short position, net position must be < 0
+			if @p_net_position < 0 then set p_ot_check = 1;
+			else set p_ot_check = 0;
+				set p_msg = 'User must have a short position before closing any portion of it';
+			end if;
+		when 2 then
+			#sell to open, must not have a long position, net position must be <= 0
+			if @p_net_position <= 0 then set p_ot_check = 1;
+			else set p_ot_check = 0;
+				set p_msg = 'User may not initiate a short position due to existing long position';
+			end if;
+		when 3 then
+			#sell to close, must have a long position, net position must be > 0
+			if @p_net_position > 0 then set p_ot_check = 1;
+			else set p_ot_check = -1;
+				set p_msg = 'User must have a long position before selling any portion of it';
+			end if;
+	end case;
+
+	#Is order QTY compatible with ordertype selection?
+		#qty must be positive to buy, multiplier is positive for buying order types 0 and 1
+		#QTY must be negative to sell, multiplier is negative for selling order types 2 and 3
+	if (select multiplier * p_Order_Qty from t_order_types
+		where OrderType_k = p_OrderType_k) <= 0 then
+		set p_qty_check = 0;
+		set p_msg = concat_ws('|',p_msg,'Order Quantity must be positive for buy orders and negative for sell orders');
+	end if;
+
+
+	#Use quote or limit, whichever is lowest, and multiply by outstanding shares,
+	#market cap must be >= min_market_capS
+
+	#if order is successfully executed, what pct of portfolio will it be?
+	# will it fit within the min and max pct_portfolio setting?
+
+	#Is order size smaller than the 20 day moving average?
+
+	#If buying, does user have enough cash to purchase at the limit?
+
+	#If selling short, does user have enough cash collateral to initiate the trade?
+
+	#if buying, and limit is lower than quote, reject order with message_text
+
+	#if selling, and limit is higher than quote, reject order with message accessible
+
+
+	select p_ot_check,p_msg into o_is_valid,o_msg ;
+end$$
+DELIMITER ;
 

@@ -11,7 +11,7 @@ s_dt = datetime.date.today() - datetime.timedelta(days=32)
 #first get the quote symbols from the mysql database
 c = mysql.connector.connect(user="etl_LOAD",password="m@ry6had6A6l!ttle6mamm()th",host="localhost",database="a")
 cur = c.cursor()
-cur.execute("SELECT Yahoo_Symbol as s FROM a.APP_v_symbols;")
+cur.execute("SELECT Yahoo_Symbol as s FROM a.APP_V_SYMBOLS;")
 symbols = ''
 for (s) in cur:
 	symbols = symbols + ",'" + "{0[0]}".format(s,'::') + "'"
@@ -53,7 +53,7 @@ cur.execute('CREATE TEMPORARY TABLE tmp.eod (s varchar(50),dt date,p float,v big
 cur.execute('load data infile \'eod.txt\' into table tmp.eod columns terminated by \'|\';')
 cur.execute("INSERT INTO a.t_eod_data (Dt, Security_k, Closing_Price, \
 Volume) select e.dt as Dt,s.Security_k ,p as Closing_Price ,v as Volume from tmp.eod e inner join \
-a.APP_v_symbols s on  s.Yahoo_Symbol = e.s left outer join \
+a.APP_V_SYMBOLS s on  s.Yahoo_Symbol = e.s left outer join \
 t_eod_data d on d.Dt = e.dt and d.Security_k = s.Security_k \
 where d.Dt is null;")
 c.commit()
