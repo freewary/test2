@@ -20,3 +20,6 @@ The following folders are used by the project on the server:
 /var/local/a - text files are cached here by ETL processes
 
 the script bin/install.sh has all the commands that have to be run to set up the project.
+
+Cron Jobs:
+daily around 8 PM lib/getEOD.py

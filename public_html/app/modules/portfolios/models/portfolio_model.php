@@ -31,10 +31,9 @@ class Portfolio_model extends CI_Model
 	* Create New Portfolio
 	*
 	* @param string $user_id
-	* @param string $nickname
-	* @param string $url_path
+	* 
  	*
- 	* @return int $portfolio_id
+ 	* @return int $trading_cash
  	*/ 										
 	function new_portfolio ($user_id) {		
 		
@@ -44,9 +43,55 @@ class Portfolio_model extends CI_Model
 		
 		$rs = $this->alphadb->query('select @trading_cash as trading_cash');
 		
-		$test = $rs->row_array();		
+		$trading_cash = $rs->row_array();
 		
-		return $test;
+		$rs->next_result();
+
+		$rs->free_result();
+		
+		return $trading_cash;
+	}
+	/**
+	* Get trade transactions
+	*
+	* @param string $user_id
+	* 
+ 	*
+ 	* @return array $transactions
+ 	*/ 										
+	function get_transactions ($user_id) {		
+						
+		$rs = $this->alphadb->query('call a.APP_USR_EXECUTIONS('.$user_id.')');
+		
+		if ($rs->num_rows() == 0) {
+			return FALSE;
+		}
+		
+		$transactions = array();		
+		
+		foreach ($rs->result_array() as $row) {					
+			$transactions[] = array(
+						'TransTmsp' => $row['TransTmsp'],
+						'Usr_ak' => $row['Usr_ak'],
+						'Security_k' => $row['Security_k'],
+						'Qty_Opened' => $row['Qty_Opened'],
+						'Price_Opened' => $row['Price_Opened'],
+						'Qty_Closed' => $row['Qty_Closed'],
+						'Qty_Open' => $row['Qty_Open'],
+						'Price_Closed_Avg' => $row['Price_Closed_Avg'],
+						'Closing_Price' => $row['Closing_Price'],
+						'Notional_Value' => $row['Notional_Value'],
+						'Realized_PL' => $row['Realized_PL'],
+						'Unrealized_PL' => $row['Unrealized_PL'],
+						'Required_Collateral' => $row['Required_Collateral'],
+						'Symbol' => $row['Symbol']
+					);
+		}
+		
+		$rs->next_result();
+		$rs->free_result();
+		
+		return $transactions;
 	}
 	/**
 	*
@@ -54,16 +99,42 @@ class Portfolio_model extends CI_Model
 	*
 	*
 	*/
-	function portfolio_exists($user_id) {
-		$this->alphadb->query('call a.APP_IS_USR_READY(' . $user_id .',@is_ready)');
+	function get_portfolio ($user_id) {
 		
-		$rs = $this->alphadb->query('select @is_ready as is_ready');
+		$rs = $this->alphadb->query('call a.APP_USR_SECURITIES('.$user_id.')');
 		
-		$test = $rs->row_array();
+		if ($rs->num_rows() == 0) {
+			return FALSE;
+		}
 		
+		//echo "<pre>";
+		//print_r($rs);
+		//echo "</pre>";
 		
+		$securities = array();
 		
-		return $test;
+		foreach ($rs->result_array() as $row) {					
+			$securities[] = array(
+						'Usr_ak' => $row['Usr_ak'],
+						'Security_k' => $row['Security_k'],
+						'Qty_Opened' => $row['Qty_Opened'],
+						'Price_Opened_Avg' => $row['Price_Opened_Avg'],
+						'Qty_Closed' => $row['Qty_Closed'],
+						'Qty_Open' => $row['Qty_Open'],
+						'Price_Closed_Avg' => $row['Price_Closed_Avg'],
+						'Closing_Price' => $row['Closing_Price'],
+						'Notional_Value' => $row['Notional_Value'],
+						'Realized_PL' => $row['Realized_PL'],
+						'Unrealized_PL' => $row['Unrealized_PL'],
+						'Required_Collateral' => $row['Required_Collateral'],
+						'Symbol' => $row['Symbol']
+					);
+		}
+		
+		$rs->next_result();
+		$rs->free_result();
+		
+		return $securities;
 	}
 	//--------------------------------------------------------------------
 	/**
@@ -204,9 +275,9 @@ class Portfolio_model extends CI_Model
 							);
 			}			
 		}
-		echo '<pre>';
-		var_dump($quotes);
-		echo '</pre>';
+		//echo '<pre>';
+		//var_dump($quotes);
+		//echo '</pre>';
 		
 		return $quotes;
 	}

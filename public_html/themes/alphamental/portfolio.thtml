@@ -44,107 +44,87 @@ function showHint(str) {ldelim}
 				<table>
 					<thead>
 						<tr>
-							<td></td>
-							<td>Ticker</td>
-							<td>Name</td>
-							<td>L/S</td>
-							<td>Duration</td>
-							<td>Shares</td>
-							<td>Total Size</td>
-							<td>Entry Px</td>
-							<td>Last Px</td>
-							<td>Beta P/L</td>
-							<td>Alpha P/L</td>
+							<td>Symbol</td>
+							<td>Qty Opened</td>
+							<td>Price Opened Avg</td>
+							<td>Qty Closed</td>
+							<td>Qty Open</td>
+							<td>Price Closed_Avg</td>
+							<td>Closing Price</td>
+							<td>Notional Value</td>
+							<td>Realized PL</td>
+							<td>Unrealized PL</td>
+							<td>Required Collateral</td>
 						</tr>
 					</thead>
-					<tbody>
-					<!-- Begin Sample Rows -->
+					<tbody>											
+					{if $securities}
+					{foreach $securities as $security}					
 						<tr>
-							<td></td>
-							<td>AAPL</td>
-							<td>Apple Inc.</td>
-							<td>S</td>
-							<td>178d</td>
-							<td>-78000</td>
-							<td>&#36;9,560,500</td>
-							<td>&#36;128.25</td>
-							<td>&#36;122.57</td>
-							<td>+4.4%</td>
-							<td>+4.5%</td>
-						</tr>
-						<tr>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-						</tr>
-						<tr>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-						</tr>
-						<!-- End Sample Rows -->
-					{if $trades}
-					{foreach $trades as $trade}
-					{assign var="trade_id" value=$trade.id}
-						<tr>
-							<td></td>
-							<td><b>{$trade.ticker_symbol}</b></td>
-							<td>NAME</td>
-							<td></td>
-							<td>{$trade.transaction_date}</td>
-							<td><b>{$trade.quantity|commify}</b></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td></td>
-							<td>
-							<form class="form validate" enctype="multipart/form-data" method="post" action="{url path="portfolios/trade/sell/{$trade.trade_id}"}">
-								<input type="submit" class="button" name="sell" value="Sell" />
-							</form>
-							</td>
+							<td>{$security.Symbol}</td>
+							<td>{$security.Qty_Opened|round:2|commify}</td>
+							<td>{$security.Price_Opened_Avg|round:2|commify}</td>
+							<td>{$security.Qty_Closed|round:2|commify}</td>
+							<td>{$security.Qty_Open|round:2|commify}</td>
+							<td>{$security.Price_Closed_Avg|round:2|commify}</td>
+							<td>{$security.Closing_Price|round:2|commify}</td>
+							<td>{$security.Notional_Value|round:2|commify}</td>
+							<td>{$security.Realized_PL|round:2|commify}</td>
+							<td>{$security.Unrealized_PL|round:2|commify}</td>
+							<td>{$security.Required_Collateral|round:2|commify}</td>
 						</tr>			
 					{/foreach}
 					{else}
 						<p>You have no trades in your portfolio.</p>
-					{/if}
-					<tr>
-					<form class="form validate" enctype="multipart/form-data" method="post" action="{url path="portfolios/trade/buy"}">
-						{if $validation_errors}
-							<div class="errors">
-								{$validation_errors}
-							</div>							
-						{/if}								
-								<td></td>								
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
-								<td></td>
-					</form>
-					</tr>
+					{/if}					
 					</tbody>					
 				</table>			
 		</div>
 		
 		<div id="main-2" class="maintab-content">
-				 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		<table>
+			<thead>
+				<tr>
+					<td>Timestamp</td>
+					<td>Security</td>
+					<td>Qty Opened</td>
+					<td>Price Opened</td>
+					<td>Qty Closed</td>
+					<td>Qty Open</td>
+					<td>Price Closed Avg</td>
+					<td>Closing Price</td>
+					<td>Notional Value</td>
+					<td>Realized P/L</td>
+					<td>Unrealized P/L</td>
+					<td>Required Collateral</td>
+				</tr>
+			</thead>
+			<tbody>
+			<!-- Begin Sample Rows -->						
+				
+			<!-- End Sample Rows -->
+			{if $transactions}
+			{foreach $transactions as $transaction}					
+				<tr>
+					<td>{$transaction.TransTmsp}</td>
+					<td>{$transaction.Symbol}</td>
+					<td>{$transaction.Qty_Opened|commify}</td>
+					<td>&#36;{$transaction.Price_Opened|round:2|commify}</td>
+					<td>{$transaction.Qty_Closed|round:2|commify}</td>
+					<td>{$transaction.Qty_Open|round:2|commify}</td>
+					<td>&#36;{$transaction.Price_Closed_Avg|round:2|commify}</td>
+					<td>&#36;{$transaction.Closing_Price|round:2|commify}</td>
+					<td>&#36;{$transaction.Notional_Value|round:2|commify}</td>
+					<td>&#36;{$transaction.Realized_PL|round:2|commify}</td>
+					<td>&#36;{$transaction.Unrealized_PL|round:2|commify}</td>
+					<td>&#36;{$transaction.Required_Collateral|round:2|commify}</td>
+				</tr>			
+			{/foreach}
+			{else}
+				<p>There are no current transactions.</p>
+			{/if}					
+			</tbody>
+		</table>
 		</div>
 		
 		<!-- Main tabs ends here -->

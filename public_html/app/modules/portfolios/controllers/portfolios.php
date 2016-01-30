@@ -34,14 +34,20 @@ class Portfolios extends Front_Controller {
 		//if ($this->portfolio_model->portfolio_exists($user_id) == FALSE) {
 		$trading_cash =	$this->portfolio_model->new_portfolio($user_id);
 		//}
+		$securities = $this->portfolio_model->get_portfolio($user_id);
 		
+		$transactions = $this->portfolio_model->get_transactions($user_id);
 		//$portfolio_id = $this->portfolio_model->get_portfolio_id($user_id);
-		
+		//echo "<pre>";
+		//print_r($transactions);
+		//echo "</pre>";
 		//$trades = $this->portfolio_model->get_trades(array('portfolio_id' => $portfolio_id));
 				
 		$notice = $this->session->flashdata('notice');
 
 		$this->smarty->assign('notice', $notice);
+		$this->smarty->assign('securities', $securities);
+		$this->smarty->assign('transactions', $transactions);
 		$this->smarty->assign('cash', $trading_cash);
 		return $this->smarty->display('portfolio.thtml');		
 	}
