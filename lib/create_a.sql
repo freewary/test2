@@ -2,32 +2,53 @@
 
 #create schema a;
 use a;
-
-#drop view a.v_positions;
-#drop table a.t_positions_closed;
-#drop table a.t_positions_opened;
-#drop table a.t_orders;
-#drop procedure a.APP_IS_ORDER_VALID
-#drop view a.APP_V_ORDER_TYPES;
-#drop table a.t_order_types;
-#drop database tmp;
-#drop USER etl_LOAD@localhost;
-#drop table a.t_eod_data;
-#drop table a.t_rel_exch_security;
-#drop table a.t_exch;
-#drop table a.t_security_facts_bigint;
-#drop table a.t_security_facts_def;
-#drop table a.t_securities;
-#drop table .a.t_corp;
-#drop procedure a.APP_IS_USR_READY;
-#drop procedure  a.APP_NEW_USR;
-#drop function a.APP_RET_CASH_FOR_TRADING;
-#drop procedure a.p_ret_cashacct_k;
-#drop function a.f_etc;
-#drop table a.t_cash_trans;
-#drop table a.t_etc;
-#drop table a.t_cash_acct;
-#drop table a.t_cash_acct_usr;
+#drop view a.APP_V_ORDER_STATUS;
+#drop view a.v_order_status;	
+#drop procedure a.APP_CANCEL_ORDER;
+#drop table a.t_orders_closed;
+# drop procedure a.APP_IS_ORDER_VALID;
+# drop procedure a.p_check_ordertype_netposition;
+# drop procuder a.APP_RET_MAX_STAKE;
+# drop function a.APP_RET_MAX_POSITION_SIZE;
+# drop function a.APP_RET_MIN_POSITION_SIZE;
+# drop function a.APP_RET_PORTFOLIO_VALUE;
+# drop function a.APP_RET_MARKET_VALUE;
+# drop function a.APP_RET_CASH_FOR_TRADING;
+# drop function a.APP_RET_REQUIRED_COLLATERAL;
+# drop procedure a.APP_USR_SECURITY_TRADES;
+# drop Procedure a.APP_USR_TRADES;
+# drop procedure a.APP_USR_SECURITIES;
+# drop procedure a.APP_USR_EXECUTIONS;
+# drop view a.v_positions;
+# drop table a.t_positions_closed;
+# drop table a.t_positions_opened;
+# drop table a.t_orders;
+# drop view a.APP_V_ORDER_TYPES;
+# drop table a.t_order_types;
+# drop database tmp;
+# drop USER etl_LOAD@localhost;
+# drop table a.t_eod_data;
+# drop function a.APP_RET_SYMBOL;
+# drop view a.APP_V_SYMBOLS;
+# drop view a.v_rel_exch_security_cur;
+# drop view a.v_rel_provider_exch_security_cur;
+# drop table a.t_rel_provider_exch_security;
+# drop table a.t_provider;
+# drop table a.t_rel_exch_security;
+# drop table a.t_exch;
+# drop table a.t_security_facts_bigint;
+# drop table a.t_security_facts_def;
+# drop table a.t_securities;
+# drop table a.t_corp;
+# drop procedure a.APP_IS_USR_READY;
+# drop procedure  a.APP_NEW_USR;
+# drop function a.APP_RET_CASH;
+# drop procedure a.p_ret_cashacct_k;
+# drop function a.f_etc;
+# drop table a.t_cash_trans;
+# drop table a.t_etc;
+# drop table a.t_cash_acct;
+# drop table a.t_cash_acct_usr;
 
 
 CREATE TABLE a.t_cash_acct_usr (
@@ -84,11 +105,11 @@ delimiter ;
 
 CREATE TABLE a.t_cash_trans (
   TransTmsp datetime NOT NULL,
-  User_ak bigint(20) NOT NULL,
+  Usr_ak bigint(20) NOT NULL,
   Credit_CashAcct_k bigint(20) NOT NULL,
   Debit_CashAcct_k bigint(20) NOT NULL,
   Amt double NOT NULL,
-  PRIMARY KEY (TransTmsp,User_ak,Credit_CashAcct_k),
+  PRIMARY KEY (TransTmsp,Usr_ak,Credit_CashAcct_k),
   KEY fk_t_cash_trans_credit_idx (Credit_CashAcct_k),
   KEY fk_t_cash_trans_debit_idx (Debit_CashAcct_k),
   CONSTRAINT fk_t_cash_trans_credit FOREIGN KEY (Credit_CashAcct_k) REFERENCES t_cash_acct (Acct_k) ON DELETE NO ACTION ON UPDATE NO ACTION,
@@ -105,9 +126,9 @@ BEGIN
 		start transaction;
 			insert into t_cash_acct (Nm) values (concat('User: ',p_Usr_ak));
 			insert into a.t_cash_acct_usr(Usr_ak, CashAcct_k) (select p_Usr_ak, Acct_k from t_cash_acct where Nm = concat('User: ',p_Usr_ak));
-			insert into t_cash_trans (TransTmsp,User_ak,Credit_CashAcct_k,Debit_CashAcct_k,Amt) (
+			insert into t_cash_trans (TransTmsp,Usr_ak,Credit_CashAcct_k,Debit_CashAcct_k,Amt) (
 					select utc_timestamp() as TransTmsp
-							,p_Usr_ak as User_ak
+							,p_Usr_ak as Usr_ak
 							,a.t_cash_acct.Acct_k as Credit_CashAcct_k
 							,t2.Acct_k as Debit_CashAcct_k
 							,a.t_etc.cfg_value as Amt
@@ -128,9 +149,8 @@ BEGIN
 END$$
 DELIMITER ;
 
-
 delimiter $$
-create function a.APP_RET_CASH_FOR_TRADING(p_Usr_ak bigint,p_ts datetime)
+create function a.APP_RET_CASH(p_Usr_ak bigint,p_ts datetime)
 	returns double
 	not deterministic
 begin
@@ -158,6 +178,7 @@ begin
 end$$
 delimiter ;
 
+
 DELIMITER $$
 CREATE PROCEDURE a.APP_NEW_USR(p_Usr_ak bigint, out o_trading_cash double)
 BEGIN
@@ -182,14 +203,17 @@ create table a.t_corp (
 	UNIQUE KEY Usr_uk_corp_nm (Nm)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-Insert into a.t_corp(Nm) values ('Apple Inc')
+Insert into a.t_corp(Nm) values 
+	('Apple Inc')
 	,('Microsoft Corp')
 	,('Exxon Mobile Corporation')
 	,('Johnson & Johnson')
 	,('Wells Fargo & Co')
 	,('Berkshire Hathaway Inc.')
 	,('Google Inc.')
-	,('Zillow Group, Inc.');
+	,('Zillow Group, Inc.')
+	,('SPDR 500 ETF Trust')
+	;
 
 #Need another table for securities
 #for example, zillow is one company with two classes of common shares
@@ -217,6 +241,7 @@ Insert into a.t_securities (Corp_k, Desc_)
 			,(8,'Class A Common Stock')
 			,(8,'Class B Common Stock')
 			,(8,'Class C Common Stock')
+			,(9,'Trust Units')
 	;
 
 create table a.t_security_facts_def(
@@ -315,7 +340,8 @@ insert into a.t_security_facts_bigint(Security_k, SecurityFactDef_k,Eff_dt,Value
 	,(13,6,'2015-06-30',58990000) #zillow c issued
 	#,(13,7,'2015-06-30',) #zillow c treasury
 	,(13,1,'2015-06-30',358990000) #zillow c outstanding
-
+#SPDR SP500 Trust
+	,(14,1,'2015-09-30',869182116)
 ;
 
 create table a.t_exch (
@@ -327,7 +353,8 @@ create table a.t_exch (
 
 Insert into a.t_exch(Nm) values('NYSE')
 				,('NASDAQ')
-				,('AMEX');
+				,('AMEX')
+				,('NYSE ARCA');
 
 create table a.t_rel_exch_security (
 	Exch_k bigint(20) not null
@@ -353,7 +380,8 @@ VALUES (2,'AAPL','2015-01-01',1)
 		,(2,'Z','2015-01-01',11)
 		,(2,'Z','2015-08-17',13)
 		,(2,'ZCVVV','2015-07-31',13)
-		,(2,'ZG','2015-08-17',11);
+		,(2,'ZG','2015-08-17',11)
+		,(4,'SPY','2015-01-01',14);
 
 #future- need to add ability to delist securities from exchanges
 
@@ -432,6 +460,16 @@ from a.t_rel_exch_security res
 				and cscur.Exch_Symbol = cs.Exch_Symbol
 ;
 
+DELIMITER $$
+CREATE FUNCTION a.APP_RET_SYMBOL(p_Security_k bigint(20)) RETURNS varchar(50)
+    DETERMINISTIC
+begin
+		declare o_symbol varchar(50);
+		select Symbol into o_symbol from a.APP_V_SYMBOLS where Security_k = p_Security_k;
+		return (o_symbol);
+	end$$
+DELIMITER ;
+
 create table a.t_eod_data(
 	Dt date not null
 	,Security_k bigint(20) not null
@@ -480,13 +518,12 @@ select OrderType_k,Order_Type,Multiplier from a.t_order_types;
 Create table a.t_orders(
 	Order_k bigint(20) not null auto_increment
 	,Submit_tmsp datetime not null
-	,User_ak bigint(20) NOT NULL
+	,Usr_ak bigint(20) NOT NULL
 	,Security_k bigint(20) not null
 	,OrderType_k tinyint(4) not null
 	,Qty_Limit bigint(20) not null
 	,Price_Limit double not null
-	,Accepted_ind boolean not null
-	,primary key (Order_k,Submit_tmsp,User_ak,Security_k)
+	,primary key (Order_k,Submit_tmsp,Usr_ak,Security_k)
 	,CONSTRAINT fk_t_rel_securities2 FOREIGN KEY (Security_k) REFERENCES t_securities(Security_k) ON DELETE NO ACTION ON UPDATE NO ACTION
 	,CONSTRAINT fk_t_rel_order_type FOREIGN KEY (OrderType_k) REFERENCES t_order_types(OrderType_k) ON DELETE NO ACTION ON UPDATE NO ACTION
 	)ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -494,60 +531,498 @@ Create table a.t_orders(
 
 CREATE TABLE a.t_positions_opened (
 	TransTmsp datetime NOT NULL
-	,User_ak bigint(20) NOT NULL
+	,Usr_ak bigint(20) NOT NULL
 	,Security_k bigint(20) not null
 	,Order_k bigint(20) not null
 	,Qty bigint(20) not null
 	,Price double NOT NULL
-	,PRIMARY KEY (TransTmsp,User_ak,Security_k)
+	,PRIMARY KEY (TransTmsp,Usr_ak,Security_k)
 	,CONSTRAINT fk_securities_positions_opened FOREIGN KEY (Security_k) REFERENCES t_securities(Security_k) ON DELETE NO ACTION ON UPDATE NO ACTION
 	,CONSTRAINT fk_t_rel_orders FOREIGN KEY (Order_k) REFERENCES t_orders(Order_k) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 create table a.t_positions_closed (
 	TransTmsp_opened datetime NOT NULL
-	,User_ak bigint(20) NOT NULL
+	,Usr_ak bigint(20) NOT NULL
 	,Security_k bigint(20) not null
 	,TransTmsp_closed datetime NOT NULL
 	,Order_k bigint(20) not null
 	,Qty bigint(20) not null
 	,Price double NOT NULL
-	,PRIMARY KEY (TransTmsp_opened,User_ak,Security_k,TransTmsp_closed)
+	,PRIMARY KEY (TransTmsp_opened,Usr_ak,Security_k,TransTmsp_closed)
 	,CONSTRAINT fk_t_rel_securities4 FOREIGN KEY (Security_k) REFERENCES t_securities(Security_k) ON DELETE NO ACTION ON UPDATE NO ACTION
 	,constraint fk_orders_positions foreign key (Order_k) references t_orders(Order_k) ON DELETE NO ACTION ON UPDATE NO ACTION
 	,constraint fk_positions_opened_positions_closed 
-		foreign key (TransTmsp_opened,User_ak,Security_k)
-		references t_positions_opened(TransTmsp,User_ak,Security_k) 
+		foreign key (TransTmsp_opened,Usr_ak,Security_k)
+		references t_positions_opened(TransTmsp,Usr_ak,Security_k) 
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 create view a.v_positions as
 SELECT 
 	o.TransTmsp
-    ,o.User_ak
+    ,o.Usr_ak
     ,o.Security_k
     ,max(o.Qty) as Qty_Opened
     ,max(o.Price) as Price_Opened
-	,sum(c.Qty) as Qty_Closed
-	,max(o.Qty) - sum(c.Qty) as Qty_Open
+	,coalesce(sum(c.Qty),0) as Qty_Closed
+	,max(o.Qty) + coalesce(sum(c.Qty),0) as Qty_Open
 	,sum(c.Qty * c.Price) / sum(c.Qty) as Price_Closed_Avg
 FROM a.t_positions_opened o
 	left outer join a.t_positions_closed c
 		on c.TransTmsp_opened = o.TransTmsp
-			and c.User_ak = o.User_ak
+			and c.Usr_ak = o.Usr_ak
 			and c.Security_k = o.Security_k
 group by o.TransTmsp
-    ,o.User_ak
+    ,o.Usr_ak
     ,o.Security_k;
 
-create view a.v_APP_USR_VARIABLES as
-select
+DELIMITER $$
+CREATE PROCEDURE a.APP_USR_EXECUTIONS(p_Usr_ak bigint)
+begin
+	SELECT p.*,d.Closing_Price
+		,d.Closing_Price * p.Qty_Open as Notional_Value
+			,if(p.Qty_Open < 0
+				,(p.Price_Opened - coalesce(p.Price_Closed_Avg,0)) * p.Qty_Closed
+				,(p.Price_Opened - coalesce(p.Price_Closed_Avg,0)) * p.Qty_Closed) as Realized_PL
+		,if(p.Qty_Open < 0
+				,(d.Closing_Price - p.Price_Opened) * p.Qty_Open
+				,(d.Closing_Price - Price_Opened) * p.Qty_Open) as Unrealized_PL
+		,if (p.Qty_Open < 0
+				,p.Qty_Open * d.Closing_Price * cfg_value 
+				,0) as Required_Collateral
+			,s.Symbol
+	FROM a.v_positions p
+		left outer join (
+			select e.Security_k
+			,e.Closing_Price
+			from a.t_eod_data e
+				inner join (
+						select Security_k, max(Dt) as Dt
+						from a.t_eod_data
+						group by Security_k
+					) m 
+					on m.Dt = e.Dt
+						and m.Security_k = e.Security_k
+			) d
+		on d.Security_k = p.Security_k
+		left outer join a.t_etc 
+			on cfg_lbl = 'short_collateral_pct'
+		left outer join a.APP_V_SYMBOLS s
+			on s.Security_k = p.Security_k
+	where p.Usr_ak = p_Usr_ak
+	;
+End$$
+DELIMITER ;
 
+DELIMITER $$
+CREATE PROCEDURE a.APP_USR_SECURITIES(p_Usr_ak bigint(20))
+begin
+	create temporary table if not exists usrexecutions as (
+	SELECT p.*,d.Closing_Price
+		,d.Closing_Price * p.Qty_Open as Notional_Value
+			,if(p.Qty_Open < 0
+				,(p.Price_Opened - coalesce(p.Price_Closed_Avg,0)) * p.Qty_Closed
+				,(p.Price_Opened - coalesce(p.Price_Closed_Avg,0)) * p.Qty_Closed) as Realized_PL
+		,if(p.Qty_Open < 0
+				,(d.Closing_Price - p.Price_Opened) * p.Qty_Open
+				,(d.Closing_Price - Price_Opened) * p.Qty_Open) as Unrealized_PL
+		,if (p.Qty_Open < 0
+				,(d.Closing_Price - p.Price_Opened) * p.Qty_Open
+				,d.Closing_Price * p.Qty_Open) as Market_Value
+		,if (p.Qty_Open < 0
+				,p.Qty_Open * d.Closing_Price * cfg_value 
+				,0) as Required_Collateral
+			,s.Symbol
+	FROM a.v_positions p
+		left outer join (
+			select e.Security_k
+			,e.Closing_Price
+			from a.t_eod_data e
+				inner join (
+						select Security_k, max(Dt) as Dt
+						from a.t_eod_data
+						group by Security_k
+					) m 
+					on m.Dt = e.Dt
+						and m.Security_k = e.Security_k
+			) d
+		on d.Security_k = p.Security_k
+		left outer join a.t_etc 
+			on cfg_lbl = 'short_collateral_pct'
+		left outer join a.APP_V_SYMBOLS s
+			on s.Security_k = p.Security_k
+	where p.Usr_ak = p_Usr_ak
+	);
+	select 
+		Usr_ak
+		,Security_k
+		,sum(Qty_Opened) as Qty_Opened
+		,sum((Qty_Opened * Price_Opened)) / sum(Qty_Opened) as Price_Opened_Avg
+		,sum(Qty_Closed) as Qty_Closed 
+		,sum(Qty_Open) as Qty_Open
+		,sum((Qty_Closed * Price_Closed_Avg)) / sum(Qty_Closed) as Price_Closed_Avg
+		,Closing_Price
+		,sum(Notional_Value) as Notional_Value
+		,sum(Realized_PL) as Realized_PL
+		,sum(Unrealized_PL) as Unrealized_PL
+		,sum(Market_Value) as Market_Value
+		,sum(Required_Collateral) as Required_Collateral
+		,Symbol
+		from usrexecutions
+		group by Usr_ak,Security_k,Closing_Price,Symbol;
+End$$
+DELIMITER ;
+
+DELIMITER $$
+Create Procedure a.APP_USR_TRADES(p_Usr_ak bigint(20),p_MinDate datetime, p_MaxDate datetime)
+begin
+Select
+	TransTmsp
+	,Usr_ak
+	,u.Security_k
+	,s.Symbol
+	,Order_k
+	,OrderType_k
+	,Order_Type
+	,Qty
+	,Price
+	from (
+		SELECT po.TransTmsp
+			,po.Usr_ak
+			,po.Security_k
+			,po.Order_k
+			,o.OrderType_k
+			,ot.Order_Type
+			,po.Qty
+			,po.Price
+		 FROM a.t_positions_opened po
+			inner join a.t_orders o
+				on o.Order_k = po.Order_k
+			inner join a.t_order_types ot
+				on ot.OrderType_k = o.OrderType_k
+			where po.TransTmsp >= p_MinDate
+				and po.TransTmsp <= p_MaxDate
+				and po.Usr_ak = p_Usr_ak
+		union all
+		SELECT pc.TransTmsp_closed
+			,pc.Usr_ak
+			,pc.Security_k
+			,pc.Order_k
+			,o.OrderType_k
+			,ot.Order_Type
+			,pc.Qty
+			,pc.Price
+		FROM a.t_positions_closed pc
+			inner join a.t_orders o
+				on o.Order_k = pc.Order_k
+			inner join a.t_order_types ot
+				on ot.OrderType_k = o.OrderType_k
+			where pc.TransTmsp_Closed >= p_MinDate
+				and pc.TransTmsp_Closed <= p_MaxDate
+				and pc.Usr_ak = p_Usr_ak
+	) u
+	inner join a.APP_V_SYMBOLS s
+		on s.Security_k = u.Security_k
+	order by TransTmsp;
+end$$
+DELIMITER ;
+
+DELIMITER $$
+Create Procedure a.APP_USR_SECURITY_TRADES(p_Usr_ak bigint(20),p_Security_k bigint(20),p_MinDate datetime, p_MaxDate datetime)
+begin
+Select
+	TransTmsp
+	,Usr_ak
+	,u.Security_k
+	,s.Symbol
+	,Order_k
+	,OrderType_k
+	,Order_Type
+	,Qty
+	,Price
+	from (
+		SELECT po.TransTmsp
+			,po.Usr_ak
+			,po.Security_k
+			,po.Order_k
+			,o.OrderType_k
+			,ot.Order_Type
+			,po.Qty
+			,po.Price
+		 FROM a.t_positions_opened po
+			inner join a.t_orders o
+				on o.Order_k = po.Order_k
+			inner join a.t_order_types ot
+				on ot.OrderType_k = o.OrderType_k
+			where po.TransTmsp >= p_MinDate
+				and po.TransTmsp <= p_MaxDate
+				and po.Usr_ak = p_Usr_ak
+				and po.Security_k = p_Security_k
+		union all
+		SELECT pc.TransTmsp_closed
+			,pc.Usr_ak
+			,pc.Security_k
+			,pc.Order_k
+			,o.OrderType_k
+			,ot.Order_Type
+			,pc.Qty
+			,pc.Price
+		FROM a.t_positions_closed pc
+			inner join a.t_orders o
+				on o.Order_k = pc.Order_k
+			inner join a.t_order_types ot
+				on ot.OrderType_k = o.OrderType_k
+			where pc.TransTmsp_Closed >= p_MinDate
+				and pc.TransTmsp_Closed <= p_MaxDate
+				and pc.Usr_ak = p_Usr_ak
+				and pc.Security_k = p_Security_k
+	) u
+	inner join a.APP_V_SYMBOLS s
+		on s.Security_k = u.Security_k
+	order by TransTmsp;
+end$$
+DELIMITER ;
+
+DELIMITER $$
+Create Procedure a.APP_USR_SECURITY_TRADES2(p_Usr_ak bigint(20),p_Security_k bigint(20))
+begin
+Select
+	TransTmsp
+	,Usr_ak
+	,u.Security_k
+	,s.Symbol
+	,Order_k
+	,OrderType_k
+	,Order_Type
+	,Qty
+	,Price
+	from (
+		SELECT po.TransTmsp
+			,po.Usr_ak
+			,po.Security_k
+			,po.Order_k
+			,o.OrderType_k
+			,ot.Order_Type
+			,po.Qty
+			,po.Price
+		 FROM a.t_positions_opened po
+			inner join a.t_orders o
+				on o.Order_k = po.Order_k
+			inner join a.t_order_types ot
+				on ot.OrderType_k = o.OrderType_k
+			where po.Usr_ak = p_Usr_ak
+				and po.Security_k = p_Security_k
+		union all
+		SELECT pc.TransTmsp_closed
+			,pc.Usr_ak
+			,pc.Security_k
+			,pc.Order_k
+			,o.OrderType_k
+			,ot.Order_Type
+			,pc.Qty
+			,pc.Price
+		FROM a.t_positions_closed pc
+			inner join a.t_orders o
+				on o.Order_k = pc.Order_k
+			inner join a.t_order_types ot
+				on ot.OrderType_k = o.OrderType_k
+			where pc.Usr_ak = p_Usr_ak
+				and pc.Security_k = p_Security_k
+	) u
+	inner join a.APP_V_SYMBOLS s
+		on s.Security_k = u.Security_k
+	order by TransTmsp;
+end$$
+DELIMITER ;
+
+delimiter $$
+create function a.APP_RET_REQUIRED_COLLATERAL(p_Usr_ak bigint(20))
+	returns double
+	not deterministic
+begin
+		SELECT sum(if (p.Qty_Open < 0
+				,p.Qty_Open * d.Closing_Price * cfg_value 
+				,0)) into @amt
+			FROM a.v_positions p
+				left outer join (
+					select e.Security_k
+					,e.Closing_Price
+					from a.t_eod_data e
+						inner join (
+								select Security_k, max(Dt) as Dt
+								from a.t_eod_data
+								group by Security_k
+							) m 
+							on m.Dt = e.Dt
+								and m.Security_k = e.Security_k
+					) d
+				on d.Security_k = p.Security_k
+				left outer join a.t_etc 
+					on cfg_lbl = 'short_collateral_pct'
+				left outer join a.APP_V_SYMBOLS s
+					on s.Security_k = p.Security_k
+			where p.Usr_ak = p_Usr_ak;
+	Return @amt;
+end$$
+delimiter ;
+
+delimiter $$
+create function a.APP_RET_CASH_FOR_TRADING(p_Usr_ak bigint(20),p_ts datetime)
+	returns double
+	not deterministic
+begin
+	select a.APP_RET_CASH(p_Usr_ak,utc_timestamp) +
+		(select a.APP_RET_REQUIRED_COLLATERAL(p_Usr_ak)) into @amt;
+	Return @amt;
+end$$
+delimiter ;
+
+delimiter $$
+create function a.APP_RET_MARKET_VALUE(p_Usr_ak bigint(20))
+	returns double
+	not deterministic
+begin
+SELECT 
+	sum(if(p.Qty_Open < 0
+		,(d.Closing_Price - p.Price_Opened) * p.Qty_Open
+		,d.Closing_Price * p.Qty_Open)) into @amt 
+	FROM a.v_positions p
+		left outer join (
+			select e.Security_k
+			,e.Closing_Price
+			from a.t_eod_data e
+				inner join (
+						select Security_k, max(Dt) as Dt
+						from a.t_eod_data
+						group by Security_k
+					) m 
+					on m.Dt = e.Dt
+						and m.Security_k = e.Security_k
+			) d
+		on d.Security_k = p.Security_k
+		left outer join a.t_etc 
+			on cfg_lbl = 'short_collateral_pct'
+		left outer join a.APP_V_SYMBOLS s
+			on s.Security_k = p.Security_k
+	where p.Usr_ak = p_Usr_ak
+	;
+	Return @amt;
+end$$
+delimiter ;
+
+delimiter $$
+create function a.APP_RET_PORTFOLIO_VALUE(p_Usr_ak bigint(20))
+	returns double
+	not deterministic
+begin
+	select a.APP_RET_CASH(p_Usr_ak,utc_timestamp) +
+		(select a.APP_RET_MARKET_VALUE(p_Usr_ak)) into @amt;
+	Return @amt;
+end$$
+delimiter ;
+
+delimiter $$
+create function a.APP_RET_MIN_POSITION_SIZE(p_Usr_ak bigint(20))
+	returns double
+	not deterministic
+begin
+	select a.APP_RET_PORTFOLIO_VALUE(p_Usr_ak) * f_etc('min_pct_new_position') into @amt;
+	return @amt;
+end$$
+delimiter ;
+
+delimiter $$
+create function a.APP_RET_MAX_POSITION_SIZE(p_Usr_ak bigint(20))
+	returns double
+	not deterministic
+begin
+	select a.APP_RET_PORTFOLIO_VALUE(p_Usr_ak) * f_etc('max_pct_new_position') into @amt;
+	return @amt;
+end$$
+delimiter ;
+
+delimiter $$
+create function a.APP_RET_MAX_STAKE(p_Security_k bigint(20))
+	returns double
+	not deterministic
+begin
+	select a.APP_RET_PORTFOLIO_VALUE(p_Usr_ak) * f_etc('max_pct_stake') into @amt;
+	return @amt;
+end$$
+delimiter ;
+
+drop procedure a.p_check_ordertype_netposition;
+DELIMITER $$
+#ot = ordertype
+#netpos = net position
+create procedure a.p_check_ordertype_netposition(p_OrderType_k tinyint(4)
+												,p_net_position bigint(20)
+												,out o_ot_netpos_check bit(1)
+												,out o_ot_netpos_msg varchar(4000)
+												)
+begin
+set o_ot_netpos_msg = '';
+case p_OrderType_k
+		when 0 then
+			#buy to open- must not have a short position, net position must be >= 0
+			if p_net_position >= 0 then set o_ot_netpos_check = 1;
+			else set o_ot_netpos_check = 0;
+				set o_ot_netpos_msg = 'Buy to open order type is incompatible with portfolio short position in this security.';
+			end if;
+		when 1 then
+			#buy to close, must have a short position, net position must be < 0
+			if p_net_position < 0 then set o_ot_netpos_check = 1;
+			else set o_ot_netpos_check = 0;
+				set o_ot_netpos_msg = 'Buy to close order type does not apply due to portfolio is not short this security.';
+			end if;
+		when 2 then
+			#sell to open, must not have a long position, net position must be <= 0
+			if p_net_position <= 0 then set o_ot_netpos_check = 1;
+			else set o_ot_netpos_check = 0;
+				set o_ot_netpos_msg = 'Sell to open order type is incompatible with portfolio long position in this security.';
+			end if;
+		when 3 then
+			#sell to close, must have a long position, net position must be > 0
+			if p_net_position > 0 then set o_ot_netpos_check = 1;
+			else set o_ot_netpos_check = -1;
+				set o_ot_netpos_msg = 'Sell to close order type does not apply due to portfolio is not long this security.';
+			end if;
+	end case;
+end$$
+delimiter ;
+
+drop procedure a.p_check_ordersize;
+delimiter $$
+create procedure a.p_check_ordersize(p_Usr_ak bigint(20)
+												,p_net_position bigint(20)
+												,p_Price_Limit float
+												,p_Signed_Order_Qty bigint(20)
+												,out o_ordersize_check bit(1)
+												,out o_ordersize_msg varchar(4000)
+												)
+begin
+select abs(p_Price_Limit * ( p_net_position + p_Signed_Order_Qty)) into @Resulting_Position;
+select a.APP_RET_MIN_POSITION_SIZE(p_Usr_ak) into @MinPosSize;
+select a.APP_RET_MAX_POSITION_SIZE(p_Usr_ak) into @MaxPosSize;
+#Always use the limit to calculate market cap
+	if @Resulting_Position < @MinPosSize  then
+		set o_ordersize_check = 0;
+		set o_ordersize_msg = 'If executed at limit price, this order would result in a smaller than allowable position size.';
+	elseif @Resulting_Position > @MaxPosSize then
+		set o_ordersize_check = 0;
+		set o_ordersize_msg = 'If executed at limit price, this order would result in a larger than allowable position size.';
+	else
+		set o_ordersize_check = 1;
+		set o_ordersize_msg = '';
+	end if;
+	select o_ordersize_check, o_ordersize_msg;
+end$$
+delimiter ; 
 
 #Order validation requires user inputs of:
 #User, securitykey, price quote, order type, share qty, price limit
 #and needs the follwing from the database
 #share counts for the symbol, current position, 
-
 drop procedure a.APP_IS_ORDER_VALID;
 DELIMITER $$
 create procedure a.APP_IS_ORDER_VALID(p_Usr_ak bigint
@@ -556,18 +1031,17 @@ create procedure a.APP_IS_ORDER_VALID(p_Usr_ak bigint
 										,p_OrderType_k tinyint(4)
 										,p_Order_Qty bigint(20)
 										,p_Price_Limit float
-										,out o_is_valid int
+										,p_Save_Order bit(1)
+										,out o_is_valid bit(1)
 										,out o_msg varchar(65535)
+										,out o_Order_k bigint(20)
 										)
 APP_IS_ORDER_VALID_label:begin
 	declare p_msg varchar(5000) default '';
 	declare p_ot_check int;
 	declare p_qty_check int;
-	#returns 1 if order is accepted, 0 if not accepted
+	#returns o_is_valid = 1 if order is accepted, 0 if not accepted
 	#If order is not accepted, needs to return a message of ALL reasons why
-
-	#All checks:
-
 	#User has established an account?
 	CALL a.APP_IS_USR_READY(p_Usr_ak, @o_is_usr_ready);
 	if @o_is_usr_ready = 0 then
@@ -575,69 +1049,192 @@ APP_IS_ORDER_VALID_label:begin
 			leave APP_IS_ORDER_VALID_label;
 			#return 0, 'User account must be configured prior to placing order.'
 		end if;
+	#for the prototype, orders will be instant only, no leaving market orders open in the prototype
+	#in order for orders to be instant, when buying limit must be higher than market price
+	#and when selling, limit must be lower than market price.
+	
 
 	#get the user's net position in this security
 	select sum(Qty_Open) into @p_net_position from a.v_positions
-	where a.v_positions.User_ak = p_Usr_ak and a.v_positions.Security_k = p_Security_k;
-	#where User_ak = p_Usr_ak and a.v_positions.Security_k = p_Security_k;
+	where a.v_positions.Usr_ak = p_Usr_ak and a.v_positions.Security_k = p_Security_k;
+	#Is user's existing position is compatible with order type?
+	call a.p_check_ordertype_netposition(p_OrderType_k,@p_net_position,@o_ot_netpos_check,@o_ot_netpos_msg);
+	#for buy orders, the limit price must be >= the market price.
+	#for sell orders, the limit price must be <= the market price.
 
-	#Users existing position is compatible with order type?
-	case p_OrderType_k
-		when 0 then
-			#buy to open- must not have a short position, net position must be >= 0
-			if @p_net_position < 0 then
-					set p_ot_check = 0;
-					set p_msg = 'User may not initiate a long position due to existing short position';
-			else set p_ot_check = 1;
-			end if;
-		when 1 then
-			#buy to close, must have a short position, net position must be < 0
-			if @p_net_position < 0 then set p_ot_check = 1;
-			else set p_ot_check = 0;
-				set p_msg = 'User must have a short position before closing any portion of it';
-			end if;
-		when 2 then
-			#sell to open, must not have a long position, net position must be <= 0
-			if @p_net_position <= 0 then set p_ot_check = 1;
-			else set p_ot_check = 0;
-				set p_msg = 'User may not initiate a short position due to existing long position';
-			end if;
-		when 3 then
-			#sell to close, must have a long position, net position must be > 0
-			if @p_net_position > 0 then set p_ot_check = 1;
-			else set p_ot_check = -1;
-				set p_msg = 'User must have a long position before selling any portion of it';
-			end if;
-	end case;
+	#Set the sign of the order qty, front end is always positive, but database uses - for selling and short positions
+	select multiplier * p_Order_Qty into @Signed_Order_Qty 
+	from t_order_types
+	where OrderType_k = p_OrderType_k;
+	#if order is successfully executed, what pct of portfolio will it be?
+	# will it fit within the min and max pct_portfolio setting?
+	call a.p_check_ordersize(p_Usr_ak
+							,@p_net_position
+							,p_Price_Limit
+							,@Signed_Order_Qty
+							,@o_ordersize_check
+							,@o_ordersize_msg
+							);
 
-	#Is order QTY compatible with ordertype selection?
-		#qty must be positive to buy, multiplier is positive for buying order types 0 and 1
-		#QTY must be negative to sell, multiplier is negative for selling order types 2 and 3
-	if (select multiplier * p_Order_Qty from t_order_types
-		where OrderType_k = p_OrderType_k) <= 0 then
-		set p_qty_check = 0;
-		set p_msg = concat_ws('|',p_msg,'Order Quantity must be positive for buy orders and negative for sell orders');
-	end if;
+			
 
+	#If selling short, does user have enough cash collateral to initiate the trade?
+
+	#If buying, does user have enough cash to purchase at the limit?
 
 	#Use quote or limit, whichever is lowest, and multiply by outstanding shares,
 	#market cap must be >= min_market_capS
 
-	#if order is successfully executed, what pct of portfolio will it be?
-	# will it fit within the min and max pct_portfolio setting?
-
 	#Is order size smaller than the 20 day moving average?
-
-	#If buying, does user have enough cash to purchase at the limit?
-
-	#If selling short, does user have enough cash collateral to initiate the trade?
 
 	#if buying, and limit is lower than quote, reject order with message_text
 
 	#if selling, and limit is higher than quote, reject order with message accessible
 
+	select min(chk) into @o_is_valid
+	from (
+			select @o_ot_netpos_check as chk
+			union all
+			select @p_net_position
+		) u;
 
-	select p_ot_check,p_msg into o_is_valid,o_msg ;
+	if (@o_is_valid = 1 and p_Save_Order = 1) then
+		INSERT INTO a.t_orders
+		(Submit_tmsp,Usr_ak,Security_k,OrderType_k,Qty_Limit,Price_Limit)
+		select now(),p_Usr_ak,p_Security_k,p_OrderType_k,p_Order_Qty,p_Price_Limit;
+		SELECT LAST_INSERT_ID() into @Order_k;
+		set p_msg = 'Order Saved';
+		select @o_is_valid,@Order_k,p_msg into o_is_valid,o_Order_k,o_msg;
+	else
+		select @o_is_valid,NULL,concat_ws('|',@o_ot_netpos_msg,@o_ordersize_msg) into o_is_valid,o_Order_k,o_msg;
+	end if;
+
+
 end$$
 DELIMITER ;
 
+
+CREATE TABLE a.t_orders_closed (
+	TransTmsp datetime NOT NULL
+	,Order_k bigint(20) not null
+	,primary key (Order_k)
+	,CONSTRAINT fk_t_orders_closed_rel_orders FOREIGN KEY (Order_k) REFERENCES t_orders(Order_k) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+DELIMITER $$
+create procedure a.APP_CANCEL_ORDER(p_Order_k bigint(20),out o_Cancel_tmsp datetime)
+begin
+	select now() into @Cancel_tmsp;
+	insert into a.t_orders_closed (TransTmsp,Order_k)
+		values (@Cancel_tmsp,p_Order_k);
+	select @Cancel_tmsp into o_Cancel_tmsp;
+end$$
+DELIMITER ;
+
+drop view a.v_order_status;
+create view a.v_order_status as
+	SELECT 
+	o.Order_k,Submit_tmsp,o.Usr_ak,o.Security_k,OrderType_k,Qty_Limit,Price_Limit
+	,coalesce(sum(po.Qty),0) as Qty_filled
+	,abs(cast(coalesce(sum(po.Qty),0) as decimal(65,2)) / Qty_Limit) as PCT_Filled
+	,oc.TransTmsp as Cancelled_Tmsp
+	 FROM a.t_orders o
+		left outer join a.t_positions_opened po
+			on po.Order_k = o.Order_k
+		left outer join a.t_orders_closed oc
+			on oc.Order_k = o.Order_k
+	where ordertype_k in (0,2)
+	group by o.Order_k,Submit_tmsp,o.Usr_ak,o.Security_k,OrderType_k,Qty_Limit,Price_Limit
+		,oc.TransTmsp
+	union all
+	SELECT 
+	o.Order_k,Submit_tmsp,o.Usr_ak,o.Security_k,OrderType_k,Qty_Limit,Price_Limit
+	,coalesce(sum(pc.Qty),0) as Qty_filled
+	,abs(cast(coalesce(sum(pc.Qty),0) as decimal(65,2)) / Qty_Limit) as PCT_Filled
+	,oc.TransTmsp as Cancelled_Tmsp
+	 FROM a.t_orders o
+		left outer join a.t_positions_closed pc
+			on pc.Order_k = o.Order_k
+		left outer join a.t_orders_closed oc
+			on oc.Order_k = o.Order_k
+	where ordertype_k in (1,3)
+	group by o.Order_k,Submit_tmsp,o.Usr_ak,o.Security_k,OrderType_k,Qty_Limit,Price_Limit
+		,oc.TransTmsp
+	;
+
+create view a.APP_V_ORDER_STATUS as
+	SELECT Order_k
+		,Submit_tmsp
+		,Usr_ak
+		,os.Security_k
+		,S.Symbol
+		,S.Yahoo_Symbol
+		,os.OrderType_k
+		,ot.Order_Type
+		,Qty_Limit
+		,Price_Limit
+		,Qty_Filled
+		,PCT_Filled
+		,Cancelled_Tmsp as Cancelled_TimeStamp
+		,if(PCT_Filled < 1 and Cancelled_Tmsp is null,1,0) as Order_Status_Ind
+		,case when PCT_Filled = 1 then 'Filled'
+			when Cancelled_Tmsp is null then 'Cancelled'
+			else 'Open' end as Order_Status_Desc
+	FROM a.v_order_status os
+		inner join a.APP_V_SYMBOLS S
+			on S.Security_k = os.Security_k
+		inner join a.t_order_types ot
+			on ot.OrderType_k = os.OrderType_k
+	;
+
+drop procedure a.APP_SAVE_TRADE;
+DELIMITER $$
+Create procedure a.APP_SAVE_TRADE(p_Order_k bigint(20)
+										,p_Execution_TMSP datetime
+ 										,p_Execution_Price float
+										,p_SPY_price float
+										,out o_saved int
+										,out o_msg varchar(65535)
+										)
+APP_SAVE_TRADE_label:begin
+	select Usr_ak,Submit_tmsp,Security_k,OrderType_k,Qty_Limit,Price_Limit
+		into @User_ak,@Submit_Tmsp,@Security_k,@OrderType_k,@Qty_Limit,@Price_Limit
+	from a.t_orders where Order_k = p_Order_k;
+	#Set the sign of the order qty, front end is always positive, but database uses - for selling and short positions
+	select multiplier * p_Order_Qty into @Order_Qty 
+	from t_order_types
+	where OrderType_k = p_OrderType_k;
+	
+#	select @o_is_valid,@o_msg,@o_Order_k;
+-- select @o_is_valid,@o_msg;
+
+	#need to set the sign of order_qty to negative for selling orders
+	#if opening, insert into positions_opened
+	#else use loop to close by FIFO, inserting into positions closed
+	select Order_type like '%Open' into @Open_ind from a.t_order_types;
+	if @Open_id = 1 then
+		#save the position changed
+		INSERT INTO a.t_positions_opened
+		(TransTmsp,Usr_ak,Security_k,Order_k,Qty,Price)
+		select p_Execution_TMSP,@Usr_ak,@Security_k,@Order_k,@Order_Qty,@Qty_Limit;
+		set @o_saved = 1;
+		set @o_msg = 'Trade execution saved';
+		#record the cash transaction and fee
+		#save the hedge transaction
+	else
+		#loop through the position openings, closing the oldest ones first
+		set @o_saved = 0;
+		set @o_msg = 'Position closing not supported yet';
+	end if;
+
+select @o_saved, @o_msg into o_saved, o_msg;
+end$$
+DELIMITER ;		
+
+#todo list
+#make a function or proc that returns outstanding orders, need to add cancel TMSP and cancel bit-
+#make a function or proc that cancels orders. done
+#change msg output, errors delimited by vertical bars, each error starts with a 
+#number, and then a : seperates the number from the message.
+#make a flowchart of order creation to saving trade
+#do error codes first!
