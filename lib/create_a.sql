@@ -1015,7 +1015,7 @@ select a.APP_RET_MAX_POSITION_SIZE(p_Usr_ak) into @MaxPosSize;
 		set o_ordersize_check = 1;
 		set o_ordersize_msg = '';
 	end if;
-	select o_ordersize_check, o_ordersize_msg;
+	#select o_ordersize_check, o_ordersize_msg;
 end$$
 delimiter ; 
 
