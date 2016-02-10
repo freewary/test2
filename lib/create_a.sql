@@ -951,6 +951,10 @@ begin
 end$$
 delimiter ;
 
+create table a.t_messages (
+		Message_k
+	)
+
 drop procedure a.p_check_ordertype_netposition;
 DELIMITER $$
 #ot = ordertype
@@ -967,25 +971,25 @@ case p_OrderType_k
 			#buy to open- must not have a short position, net position must be >= 0
 			if p_net_position >= 0 then set o_ot_netpos_check = 1;
 			else set o_ot_netpos_check = 0;
-				set o_ot_netpos_msg = 'Buy to open order type is incompatible with portfolio short position in this security.';
+				set o_ot_netpos_msg = '1004:Buy to open order type is incompatible with portfolio short position in this security.';
 			end if;
 		when 1 then
 			#buy to close, must have a short position, net position must be < 0
 			if p_net_position < 0 then set o_ot_netpos_check = 1;
 			else set o_ot_netpos_check = 0;
-				set o_ot_netpos_msg = 'Buy to close order type does not apply due to portfolio is not short this security.';
+				set o_ot_netpos_msg = '1005:Buy to close order type does not apply due to portfolio is not short this security.';
 			end if;
 		when 2 then
 			#sell to open, must not have a long position, net position must be <= 0
 			if p_net_position <= 0 then set o_ot_netpos_check = 1;
 			else set o_ot_netpos_check = 0;
-				set o_ot_netpos_msg = 'Sell to open order type is incompatible with portfolio long position in this security.';
+				set o_ot_netpos_msg = '1006:Sell to open order type is incompatible with portfolio long position in this security.';
 			end if;
 		when 3 then
 			#sell to close, must have a long position, net position must be > 0
 			if p_net_position > 0 then set o_ot_netpos_check = 1;
 			else set o_ot_netpos_check = -1;
-				set o_ot_netpos_msg = 'Sell to close order type does not apply due to portfolio is not long this security.';
+				set o_ot_netpos_msg = '1007:Sell to close order type does not apply due to portfolio is not long this security.';
 			end if;
 	end case;
 end$$
@@ -1007,10 +1011,10 @@ select a.APP_RET_MAX_POSITION_SIZE(p_Usr_ak) into @MaxPosSize;
 #Always use the limit to calculate market cap
 	if @Resulting_Position < @MinPosSize  then
 		set o_ordersize_check = 0;
-		set o_ordersize_msg = 'If executed at limit price, this order would result in a smaller than allowable position size.';
+		set o_ordersize_msg = '1002:If executed at limit price, this order would result in a smaller than allowable position size.';
 	elseif @Resulting_Position > @MaxPosSize then
 		set o_ordersize_check = 0;
-		set o_ordersize_msg = 'If executed at limit price, this order would result in a larger than allowable position size.';
+		set o_ordersize_msg = '1003:If executed at limit price, this order would result in a larger than allowable position size.';
 	else
 		set o_ordersize_check = 1;
 		set o_ordersize_msg = '';
@@ -1045,7 +1049,7 @@ APP_IS_ORDER_VALID_label:begin
 	#User has established an account?
 	CALL a.APP_IS_USR_READY(p_Usr_ak, @o_is_usr_ready);
 	if @o_is_usr_ready = 0 then
-			select 0,'User account must be configured prior to placing order.' into o_is_valid,o_msg;
+			select 0,'1001:User account must be configured prior to placing order.' into o_is_valid,o_msg;
 			leave APP_IS_ORDER_VALID_label;
 			#return 0, 'User account must be configured prior to placing order.'
 		end if;
@@ -1103,7 +1107,7 @@ APP_IS_ORDER_VALID_label:begin
 		(Submit_tmsp,Usr_ak,Security_k,OrderType_k,Qty_Limit,Price_Limit)
 		select now(),p_Usr_ak,p_Security_k,p_OrderType_k,p_Order_Qty,p_Price_Limit;
 		SELECT LAST_INSERT_ID() into @Order_k;
-		set p_msg = 'Order Saved';
+		set p_msg = '1008:Order Saved.';
 		select @o_is_valid,@Order_k,p_msg into o_is_valid,o_Order_k,o_msg;
 	else
 		select @o_is_valid,NULL,concat_ws('|',@o_ot_netpos_msg,@o_ordersize_msg) into o_is_valid,o_Order_k,o_msg;
