@@ -1056,10 +1056,10 @@ APP_IS_ORDER_VALID_label:begin
 	#for the prototype, orders will be instant only, no leaving market orders open in the prototype
 	#in order for orders to be instant, when buying limit must be higher than market price
 	#and when selling, limit must be lower than market price.
-	
+	#Need to force the user to submit only positive order quantities, use the order type key to modify the sign
 
 	#get the user's net position in this security
-	select sum(Qty_Open) into @p_net_position from a.v_positions
+	select coalesce(sum(Qty_Open),0) into 	@p_net_position from a.v_positions
 	where a.v_positions.Usr_ak = p_Usr_ak and a.v_positions.Security_k = p_Security_k;
 	#Is user's existing position is compatible with order type?
 	call a.p_check_ordertype_netposition(p_OrderType_k,@p_net_position,@o_ot_netpos_check,@o_ot_netpos_msg);
@@ -1080,8 +1080,6 @@ APP_IS_ORDER_VALID_label:begin
 							,@o_ordersize_msg
 							);
 
-			
-
 	#If selling short, does user have enough cash collateral to initiate the trade?
 
 	#If buying, does user have enough cash to purchase at the limit?
@@ -1099,13 +1097,13 @@ APP_IS_ORDER_VALID_label:begin
 	from (
 			select @o_ot_netpos_check as chk
 			union all
-			select @p_net_position
+			select @o_ordersize_check
 		) u;
 
 	if (@o_is_valid = 1 and p_Save_Order = 1) then
 		INSERT INTO a.t_orders
 		(Submit_tmsp,Usr_ak,Security_k,OrderType_k,Qty_Limit,Price_Limit)
-		select now(),p_Usr_ak,p_Security_k,p_OrderType_k,p_Order_Qty,p_Price_Limit;
+		select now(),p_Usr_ak,p_Security_k,p_OrderType_k,@Signed_Order_Qty,p_Price_Limit;
 		SELECT LAST_INSERT_ID() into @Order_k;
 		set p_msg = '1008:Order Saved.';
 		select @o_is_valid,@Order_k,p_msg into o_is_valid,o_Order_k,o_msg;
@@ -1196,18 +1194,41 @@ DELIMITER $$
 Create procedure a.APP_SAVE_TRADE(p_Order_k bigint(20)
 										,p_Execution_TMSP datetime
  										,p_Execution_Price float
+										,p_Execution_Count bigint(20)
 										,p_SPY_price float
 										,out o_saved int
 										,out o_msg varchar(65535)
 										)
 APP_SAVE_TRADE_label:begin
+		DECLARE vTransTmsp_opened datetime;
+		DECLARE vQty_open bigint(20);
+		DECLARE vCumulativeClosed bigint(20);
+		DECLARE vClosedThisStep bigint(20);
+		DECLARE vUsr_ak bigint(20);
+		DECLARE vSecurity_k bigint(20);
+		DECLARE curOpenPos CURSOR FOR 
+		select 
+			o.TransTmsp AS TransTmsp_opened
+			,(max(o.Qty) + coalesce(sum(c.Qty),0)) AS Qty_Open
+			 from (a.t_positions_opened o 
+				left join a.t_positions_closed c 
+					on(((c.TransTmsp_opened = o.TransTmsp) 
+						and (c.Usr_ak = o.Usr_ak) 
+						and (c.Security_k = o.Security_k)))) 
+				where o.Usr_ak = vUsr_ak
+					and o.Security_k = vSecurity_k
+			group by o.TransTmsp,o.Usr_ak,o.Security_k
+			having (max(o.Qty) <> coalesce(sum(c.Qty),0))
+			order by o.TransTmsp
+			;
+
 	select Usr_ak,Submit_tmsp,Security_k,OrderType_k,Qty_Limit,Price_Limit
-		into @User_ak,@Submit_Tmsp,@Security_k,@OrderType_k,@Qty_Limit,@Price_Limit
+		into vUsr_ak,@Submit_Tmsp,vSecurity_k,@OrderType_k,@Qty_Limit,@Price_Limit
 	from a.t_orders where Order_k = p_Order_k;
-	#Set the sign of the order qty, front end is always positive, but database uses - for selling and short positions
-	select multiplier * p_Order_Qty into @Order_Qty 
+
+	select multiplier, multiplier * @Qty_Limit into @Multiplier,@Order_Qty 
 	from t_order_types
-	where OrderType_k = p_OrderType_k;
+	where OrderType_k = @OrderType_k;
 	
 #	select @o_is_valid,@o_msg,@o_Order_k;
 -- select @o_is_valid,@o_msg;
@@ -1215,30 +1236,59 @@ APP_SAVE_TRADE_label:begin
 	#need to set the sign of order_qty to negative for selling orders
 	#if opening, insert into positions_opened
 	#else use loop to close by FIFO, inserting into positions closed
-	select Order_type like '%Open' into @Open_ind from a.t_order_types;
-	if @Open_id = 1 then
+	select Order_type like '%Open' into @Open_ind 
+	from a.t_order_types
+		where a.t_order_types.OrderType_k = @OrderType_k;
+	if @Open_ind = 1 then
 		#save the position changed
 		INSERT INTO a.t_positions_opened
 		(TransTmsp,Usr_ak,Security_k,Order_k,Qty,Price)
-		select p_Execution_TMSP,@Usr_ak,@Security_k,@Order_k,@Order_Qty,@Qty_Limit;
+		select p_Execution_TMSP,vUsr_ak,vSecurity_k,@Order_k,@Order_Qty,@Qty_Limit;
 		set @o_saved = 1;
 		set @o_msg = 'Trade execution saved';
 		#record the cash transaction and fee
 		#save the hedge transaction
 	else
 		#loop through the position openings, closing the oldest ones first
-		set @o_saved = 0;
-		set @o_msg = 'Position closing not supported yet';
+		set vCumulativeClosed = 0;
+		Open curOpenPos;
+		ClosePos: LOOP
+			FETCH curOpenPos INTO vTransTmsp_opened,vQty_open;
+			#First figure out how many are going to be closed this step
+			select min(test) into vClosedThisStep from (
+				select vQty_open as test
+				union all
+				select p_Execution_Count - vCumulativeClosed
+				) d;
+			INSERT INTO a.t_positions_closed
+			(TransTmsp_opened,
+			Usr_ak,
+			Security_k,
+			TransTmsp_closed,
+			Order_k,
+			Qty,
+			Price)
+			VALUES
+			(vTransTmsp_opened,
+			vUsr_ak,
+			vSecurity_k,
+			p_Execution_TMSP,
+			p_Order_k,
+			vClosedThisStep * @Multiplier,
+			p_Execution_Price);
+			set vCumulativeClosed = vCumulativeClosed + vClosedThisStep;
+			IF p_Execution_Count - vCumulativeClosed = 0 THEN 
+				LEAVE ClosePos;
+			end if;
+		end loop;
+		set @o_saved = 1;
 	end if;
-
 select @o_saved, @o_msg into o_saved, o_msg;
 end$$
 DELIMITER ;		
 
 #todo list
-#make a function or proc that returns outstanding orders, need to add cancel TMSP and cancel bit-
-#make a function or proc that cancels orders. done
-#change msg output, errors delimited by vertical bars, each error starts with a 
-#number, and then a : seperates the number from the message.
+
 #make a flowchart of order creation to saving trade
-#do error codes first!
+#figure out why the production server is rejecting orders for all securities except aapl
+# for user 1001 with reason of existing short position.

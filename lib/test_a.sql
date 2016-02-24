@@ -46,53 +46,80 @@ select @o_ot_netpos_check,@o_ot_netpos_msg;
 call a.p_check_ordertype_netposition(3,1,@o_ot_netpos_check,@o_ot_netpos_msg);
 select @o_ot_netpos_check,@o_ot_netpos_msg;
 
-select sum(Qty_Open) into @p_net_position from a.v_positions
+select coalesce(sum(Qty_Open),0) into @p_net_position from a.v_positions
 where a.v_positions.Usr_ak = 1001 and a.v_positions.Security_k = 1;
 select @p_net_position;
 call a.p_check_ordersize(1001
 							,@p_net_position
 							,99.99
-							,-90000
+							,10000
 							,@ordersize_check
 							,@ordersize_msg
 							);
 select @ordersize_check,@ordersize_msg;
 
-#has 95000 + 100 = 9,500,000
-#user 99, security; Apple, quote: $116.85, order type: Buy to open, qty: 9500, limit: 40
+#check if an order is valid
+#sell zillow short effective 12/7
+CALL a.APP_IS_ORDER_VALID(1001
+						, 13
+						, 18.83
+						, 2
+						, 1000
+						, 18.90
+						,0
+						, @o_is_valid
+						, @o_msg 
+						, @o_Order_k);
+select @o_is_valid as is_valid
+	, @o_msg as msg
+	, @o_Order_k as Order_k
+	;
+
+#user 1001, buy 10000 shares of AAPL
 call a.APP_IS_ORDER_VALID(1001,1,99.99,0,10000,95,0,@o_is_valid,@o_msg,@Order_k);
 select @o_is_valid,@o_msg,@Order_k;
-
-call a.APP_CANCEL_ORDER(
-#set sql_safe_updates = 0;
-#delete from a.t_orders;
-#delete from a.t_positions_opened;
-#delete from a.t_positions_closed;
-
-#user 1001, buy 100000 shares of AAPL
-#first create an order
-INSERT INTO a.t_orders
-(Submit_tmsp,Usr_ak,Security_k,OrderType_k,Qty_Limit,Price_Limit,Accepted_ind)
-select '2015-11-06 3:51',1001,1,0,100000,122,1;
-INSERT INTO a.t_positions_opened
-(TransTmsp,Usr_ak,Security_k,Order_k,Qty,Price)
-select '2015-11-06 3:51',1001,1,(select max(order_k) from a.t_orders),100000,121.75;
+#since the order was valid, get the order key
+call a.APP_IS_ORDER_VALID(1001,1,99.99,0,10000,95,1,@o_is_valid,@o_msg,@Order_k);
+select @o_is_valid,@o_msg,@Order_k;
+#11
+#now save the trade
+CALL a.APP_SAVE_TRADE(11
+					,'2015-11-06 3:51'
+					, 121.75
+					, 100000
+					, 209
+					, @o_saved
+					, @o_msg)
+					;
+select @o_saved,@o_msg;
 
 #Another buy order
-INSERT INTO a.t_orders
-(Submit_tmsp,Usr_ak,Security_k,OrderType_k,Qty_Limit,Price_Limit,Accepted_ind)
-select '2015-11-09 3:54',1001,1,0,75000,107.02,1;
-INSERT INTO a.t_positions_opened
-(TransTmsp,Usr_ak,Security_k,Order_k,Qty,Price)
-select '2015-11-09 3:54',1001,1,(select max(order_k) from a.t_orders),75000,107.02;
+call a.APP_IS_ORDER_VALID(1001,1,107.02,0,75000,107.02,1,@o_is_valid,@o_msg,@Order_k);
+select @o_is_valid,@o_msg,@Order_k;
+CALL a.APP_SAVE_TRADE(@Order_k
+					,'2015-11-09 3:54'
+					, 107.02
+					, 75000
+					, 209
+					, @o_saved
+					, @o_msg)
+					;
+select @o_saved,@o_msg;
 
 #now sell some shares in two orders. First order sells a portion of the first open execution.
-INSERT INTO a.t_orders
-(Submit_tmsp,Usr_ak,Security_k,OrderType_k,Qty_Limit,Price_Limit,Accepted_ind)
-select '2015-12-02 3:51',1001,1,3,60000,115,1;
-Insert into a.t_positions_closed
-(TransTmsp_opened,Usr_ak,Security_k,TransTmsp_closed,Order_k,Qty,Price)
-select '2015-11-06 3:51',1001,1,'2015-12-02 3:51',(select max(order_k) from a.t_orders),-60000,116.23;
+call a.APP_IS_ORDER_VALID(1001,1,115,3,60000,115,1,@o_is_valid,@o_msg,@Order_k);
+select @o_is_valid,@o_msg,@Order_k;
+CALL a.APP_SAVE_TRADE(@Order_k
+					,'2015-11-06 3:51'
+					, 116.23
+					, 60000
+					, 204
+					, @o_saved
+					, @o_msg)
+					;
+select @o_saved,@o_msg;
+
+
 
 #second order sells the rest of the first open execution and a portion of the 2nd execution
 INSERT INTO a.t_orders
