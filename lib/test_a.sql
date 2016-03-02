@@ -57,6 +57,65 @@ call a.p_check_ordersize(1001
 							,@ordersize_msg
 							);
 select @ordersize_check,@ordersize_msg;
+#verify that cash levels are checked when verifying orders
+CALL a.APP_IS_ORDER_VALID(1001
+						, 13
+						, 18.83
+						, 2
+						, 100000000000000000000
+						, 18.90
+						,0
+						, @o_is_valid
+						, @o_msg 
+						, @o_Order_k);
+select @o_is_valid as is_valid
+	, @o_msg as msg
+	, @o_Order_k as Order_k
+	;
+
+#verify that negative share quantities are rejected by APP_IS_ORDER_VALID
+CALL a.APP_IS_ORDER_VALID(1001
+						, 13
+						, 18.83
+						, 2
+						, -1000
+						, 18.90
+						,0
+						, @o_is_valid
+						, @o_msg 
+						, @o_Order_k);
+select @o_is_valid as is_valid
+	, @o_msg as msg
+	, @o_Order_k as Order_k
+	;
+-- verify that negative execution count causes early exit from APP_SAVE_TRADE
+-- first must have a valid order number
+CALL a.APP_IS_ORDER_VALID(1001
+						, 13
+						, 18.83
+						, 2
+						, 100000
+						, 18.90
+						,1
+						, @o_is_valid
+						, @o_msg 
+						, @o_Order_k);
+select @o_is_valid as is_valid
+	, @o_msg as msg
+	, @o_Order_k as Order_k
+	;
+CALL a.APP_SAVE_TRADE(@o_Order_k
+					,'2015-11-06 3:51'
+					, 18.83
+					, -1000
+					, 209
+					, @o_saved
+					, @o_msg)
+					;
+select @o_saved,@o_msg;
+
+
+
 
 #check if an order is valid
 #sell zillow short effective 12/7
@@ -107,30 +166,30 @@ CALL a.APP_SAVE_TRADE(@Order_k
 select @o_saved,@o_msg;
 
 #now sell some shares in two orders. First order sells a portion of the first open execution.
-call a.APP_IS_ORDER_VALID(1001,1,115,3,60000,115,1,@o_is_valid,@o_msg,@Order_k);
+call a.APP_IS_ORDER_VALID(1001,1,115,3,100,115,1,@o_is_valid,@o_msg,@Order_k);
 select @o_is_valid,@o_msg,@Order_k;
 CALL a.APP_SAVE_TRADE(@Order_k
 					,'2015-11-06 3:51'
 					, 116.23
-					, 60000
+					, 100
+					, 204
+					, @o_saved
+					, @o_msg)
+					;
+select @o_saved,@o_msg;
+#second order sells the rest of the first open execution and a portion of the 2nd execution
+call a.APP_IS_ORDER_VALID(1001,1,115,3,20000,115,1,@o_is_valid,@o_msg,@Order_k);
+select @o_is_valid,@o_msg,@Order_k;
+CALL a.APP_SAVE_TRADE(@Order_k
+					,'2015-11-06 3:54'
+					, 110.42
+					, 20000
 					, 204
 					, @o_saved
 					, @o_msg)
 					;
 select @o_saved,@o_msg;
 
-
-
-#second order sells the rest of the first open execution and a portion of the 2nd execution
-INSERT INTO a.t_orders
-(Submit_tmsp,Usr_ak,Security_k,OrderType_k,Qty_Limit,Price_Limit,Accepted_ind)
-select '2015-12-15 3:57',1001,1,3,20000,110,1;
-Insert into a.t_positions_closed
-(TransTmsp_opened,Usr_ak,Security_k,TransTmsp_closed,Order_k,Qty,Price)
-select '2015-11-06 3:51',1001,1,'2015-12-15 3:57',(select max(order_k) from a.t_orders),-15000,110.41;
-Insert into a.t_positions_closed
-(TransTmsp_opened,Usr_ak,Security_k,TransTmsp_closed,Order_k,Qty,Price)
-select '2015-11-09 3:54',1001,1,'2015-12-15 3:57',(select max(order_k) from a.t_orders),-5000,110.42;
 
 #Example of a profitable short position. For fun we will say that user 99 sold zillow short on Oct 12, 2015
 INSERT INTO a.t_orders

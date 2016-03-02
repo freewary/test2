@@ -1023,6 +1023,36 @@ select a.APP_RET_MAX_POSITION_SIZE(p_Usr_ak) into @MaxPosSize;
 end$$
 delimiter ; 
 
+delimiter $$
+create procedure a.p_check_cash(p_Usr_ak bigint(20)
+									,p_OrderType_k tinyint(4)
+									,p_Price float
+									,p_Signed_Order_Qty bigint(20)
+									,out o_Sufficient_Cash bit
+									,out o_Msg varchar(255)
+								)
+begin
+declare vTradingCash float;
+select a.APP_RET_CASH_FOR_TRADING(p_Usr_ak,utc_timestamp) into vTradingCash;
+case p_OrderType_k
+		when 0 then
+			if o_Sufficient_Cash >= p_Signed_Order_Qty * p_Price then
+				set o_Sufficient_Cash = 1;
+				set o_Msg = '';
+			else
+				set o_Sufficient_Cash = 0;
+				set o_Msg = '1010:Insufficient Funds to execute order or trade.';
+			end if;
+		when 1 then
+		when 2 then
+		when 3 then
+			#do nothing because the user is selling owned securities
+end case;
+select a.APP_RET_CASH_FOR_TRADING(p_Usr_ak,utc_timestamp);
+select 1 into o_Sufficient_Cash;
+end$$
+delimiter ;
+
 #Order validation requires user inputs of:
 #User, securitykey, price quote, order type, share qty, price limit
 #and needs the follwing from the database
@@ -1053,10 +1083,22 @@ APP_IS_ORDER_VALID_label:begin
 			leave APP_IS_ORDER_VALID_label;
 			#return 0, 'User account must be configured prior to placing order.'
 		end if;
+	if p_Order_Qty < 0 then
+			select 0,'1009:Order Qty (or Execution count) must be a number > 0. Designate order direction by the type of order' into o_is_valid,o_msg;
+			leave APP_IS_ORDER_VALID_label;
+		end if;
 	#for the prototype, orders will be instant only, no leaving market orders open in the prototype
 	#in order for orders to be instant, when buying limit must be higher than market price
 	#and when selling, limit must be lower than market price.
 	#Need to force the user to submit only positive order quantities, use the order type key to modify the sign
+
+	#Does the user have sufficient cash to executed this trade? 
+	select (p_Order_Qty * p_Price_Limit) <= a.APP_RET_CASH_FOR_TRADING(1001,utc_timestamp) into @check_cash;
+	if @check_cash = 0 then
+		select '1010:Insufficient Funds to execute order or trade.' into @cash_msg;
+	else
+		set @cash_msg = '';
+	end if;
 
 	#get the user's net position in this security
 	select coalesce(sum(Qty_Open),0) into 	@p_net_position from a.v_positions
@@ -1098,6 +1140,8 @@ APP_IS_ORDER_VALID_label:begin
 			select @o_ot_netpos_check as chk
 			union all
 			select @o_ordersize_check
+			union all
+			select @check_cash
 		) u;
 
 	if (@o_is_valid = 1 and p_Save_Order = 1) then
@@ -1108,13 +1152,12 @@ APP_IS_ORDER_VALID_label:begin
 		set p_msg = '1008:Order Saved.';
 		select @o_is_valid,@Order_k,p_msg into o_is_valid,o_Order_k,o_msg;
 	else
-		select @o_is_valid,NULL,concat_ws('|',@o_ot_netpos_msg,@o_ordersize_msg) into o_is_valid,o_Order_k,o_msg;
+		select @o_is_valid,NULL,concat_ws('|',@o_ot_netpos_msg,@o_ordersize_msg,@cash_msg) into o_is_valid,o_Order_k,o_msg;
 	end if;
 
 
 end$$
 DELIMITER ;
-
 
 CREATE TABLE a.t_orders_closed (
 	TransTmsp datetime NOT NULL
@@ -1139,6 +1182,7 @@ create view a.v_order_status as
 	o.Order_k,Submit_tmsp,o.Usr_ak,o.Security_k,OrderType_k,Qty_Limit,Price_Limit
 	,coalesce(sum(po.Qty),0) as Qty_filled
 	,abs(cast(coalesce(sum(po.Qty),0) as decimal(65,2)) / Qty_Limit) as PCT_Filled
+	,Qty_Limit - coalesce(sum(po.Qty),0) as Qty_Unfilled
 	,oc.TransTmsp as Cancelled_Tmsp
 	 FROM a.t_orders o
 		left outer join a.t_positions_opened po
@@ -1153,6 +1197,7 @@ create view a.v_order_status as
 	o.Order_k,Submit_tmsp,o.Usr_ak,o.Security_k,OrderType_k,Qty_Limit,Price_Limit
 	,coalesce(sum(pc.Qty),0) as Qty_filled
 	,abs(cast(coalesce(sum(pc.Qty),0) as decimal(65,2)) / Qty_Limit) as PCT_Filled
+	,Qty_Limit - coalesce(sum(pc.Qty),0) as Qty_Unfilled
 	,oc.TransTmsp as Cancelled_Tmsp
 	 FROM a.t_orders o
 		left outer join a.t_positions_closed pc
@@ -1222,9 +1267,16 @@ APP_SAVE_TRADE_label:begin
 			order by o.TransTmsp
 			;
 
+	if p_Execution_Count < 0 then
+		select 0,'1009:Order Qty (or Execution count) must be a number > 0. Designate order direction by the type of order' into o_saved,o_msg;
+		leave APP_SAVE_TRADE_label;
+	end if;
+
 	select Usr_ak,Submit_tmsp,Security_k,OrderType_k,Qty_Limit,Price_Limit
 		into vUsr_ak,@Submit_Tmsp,vSecurity_k,@OrderType_k,@Qty_Limit,@Price_Limit
 	from a.t_orders where Order_k = p_Order_k;
+
+	#proc will execute the minimum of 1) Execution count 2) Unfilled Qty 3) Shares that can be bought with funds available
 
 	select multiplier, multiplier * @Qty_Limit into @Multiplier,@Order_Qty 
 	from t_order_types
@@ -1243,10 +1295,52 @@ APP_SAVE_TRADE_label:begin
 		#save the position changed
 		INSERT INTO a.t_positions_opened
 		(TransTmsp,Usr_ak,Security_k,Order_k,Qty,Price)
-		select p_Execution_TMSP,vUsr_ak,vSecurity_k,@Order_k,@Order_Qty,@Qty_Limit;
+		select p_Execution_TMSP,vUsr_ak,vSecurity_k,@Order_k,@Order_Qty,p_Execution_Price;
 		set @o_saved = 1;
 		set @o_msg = 'Trade execution saved';
 		#record the cash transaction and fee
+		if @OrderType_k = 0 then
+			INSERT INTO a.t_cash_trans
+				(TransTmsp,
+				Usr_ak,
+				Credit_CashAcct_k,
+				Debit_CashAcct_k,
+				Amt)
+				VALUES
+				(p_Execution_TMSP,
+					vUsr_ak,
+					12,
+				(select CashAcct_k from t_cash_acct_usr where Usr_ak = vUsr_ak),
+				@Order_Qty*p_Execution_Price
+				)
+				,(p_Execution_TMSP,
+					vUsr_ak,
+					13,
+				(select CashAcct_k from t_cash_acct_usr where Usr_ak = vUsr_ak),
+				(select cfg_value * @Order_Qty*p_Execution_Price from t_etc where cfg_lbl = 'trade_fee') 
+				);
+		elseif @OrderType_k = 2 then
+			INSERT INTO a.t_cash_trans
+				(TransTmsp,
+				Usr_ak,
+				Credit_CashAcct_k,
+				Debit_CashAcct_k,
+				Amt)
+				VALUES
+				(p_Execution_TMSP,
+					vUsr_ak,
+				(select CashAcct_k from t_cash_acct_usr where Usr_ak = vUsr_ak),
+					12,
+				abs(@Order_Qty)*p_Execution_Price
+				)
+				,(p_Execution_TMSP,
+					vUsr_ak,
+					13,
+				(select CashAcct_k from t_cash_acct_usr where Usr_ak = vUsr_ak),
+				(select cfg_value * @Order_Qty*p_Execution_Price from t_etc where cfg_lbl = 'trade_fee') 
+				);
+		end if;
+
 		#save the hedge transaction
 	else
 		#loop through the position openings, closing the oldest ones first
